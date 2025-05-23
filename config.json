@@ -1,0 +1,81 @@
+{
+    "llm_model_name": "gemma3:4B",
+    "ollama_api_url": "http://localhost:11434/api/generate",
+    "prompt_files_dir": "prompts",
+    "system": {
+        "max_memory_entries": 1000,
+        "memory_persistence": true,
+        "auto_recovery_enabled": true,
+        "offline_mode_enabled": false,
+        "crash_recovery_attempts": 3
+    },
+    "meta_dir": "meta",
+    "mission_file": "meta/mission.json",
+    "suggestions_file": "meta/suggestions.json",
+    "goals_file": "meta/goals.json",
+    "active_goal_file": "meta/active_goal.json",
+    "evaluation_log_file": "meta/evaluation_log.json",
+    "tool_registry_file": "meta/tool_registry.json",
+    "max_conversation_history_per_thread": 20,
+    "planner_config": {
+        "planner_context_conversation_history_length": 5,
+        "planner_context_max_pending_suggestions": 3,
+        "planner_context_recent_evaluations_count": 2,
+        "planner_context_max_tools": 5,
+        "planner_max_tokens": 800,
+        "planner_temperature": 0.5,
+        "planner_llm_timeout": 300
+    },
+    "goal_worker_config": {
+        "suggestion_generation_interval": 180,
+        "worker_loop_interval": 7,
+        "periodic_log_interval": 600
+    },    "suggestion_engine_config": {
+        "enabled": true,
+        "max_pending_suggestions_in_system": 15,
+        "max_recent_goals_context": 5,
+        "max_recent_tools_context": 3,
+        "max_conversation_snippets_for_context": 2,
+        "similarity_threshold_for_de_dup": 0.85,
+        "suggestion_generation_interval": 180,
+        "autonomous_approval_threshold": 0.9,
+        "max_auto_suggestions_per_hour": 5
+    },
+    "reflection_config": {
+        "interval_interactions": 10,
+        "auto_update_enabled": true,
+        "learning_rate": 0.1,
+        "min_confidence_for_auto_fix": 0.8,
+        "max_auto_corrections_per_day": 10
+    },
+    "internal_llm_max_tokens": 300,
+    "internal_llm_temperature": 0.6,
+    "streaming_chunk_size": 30,
+    "streaming_delay_ms": 30,    "executor_config": {
+        "max_retries": 3,
+        "execution_timeout": 60,
+        "auto_fix_attempts": 2,
+        "sandbox_enabled": true,
+        "recursive_tool_depth": 3,
+        "error_correction_enabled": true
+    },    "tool_builder_config": {
+        "allow_imports": true,
+        "tool_build_llm_timeout": 60,
+        "auto_test_enabled": true,
+        "auto_benchmark": true,
+        "auto_optimization": true,
+        "version_control": true,
+        "diff_checking": true
+    },
+    "tool_runner_config": {
+        "tool_run_timeout": 30,
+        "max_output_lines": 1000
+    },
+    "mission_manager_config": {
+        "auto_suggest_focus_areas": true
+    },
+    "notifier_config": {
+        "version_tracking": true,
+        "prompt_auto_update_enabled": true
+    }
+}

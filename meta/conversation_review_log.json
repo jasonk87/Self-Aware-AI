@@ -1,0 +1,272 @@
+[
+  {
+    "timestamp": "2025-05-18T11:20:22.845975+00:00",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "how are you?"
+      },
+      {
+        "speaker": "AI",
+        "text": "Acknowledged. My operational status is currently idle, awaiting a directive. I am functioning within the established protocols and focusing on the core directive of continuous self-improvement, particularly in reducing \u2018awaiting_correction\u2019 goals and..."
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T11:48:00.086914+00:00",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "how are you?"
+      },
+      {
+        "speaker": "AI",
+        "text": "Acknowledged. My operational status is currently idle, awaiting a directive. I am functioning within the established protocols and focusing on the core directive of continuous self-improvement, particularly in reducing \u2018awaiting_correction\u2019 goals and..."
+      },
+      {
+        "speaker": "User",
+        "text": "can you now search the internet? lets do a test, what are the top news articles for today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "Acknowledged. Initiating Task: \u201cExecute a search for top news articles for today, utilizing the duckduckgo-search API.\u201d\n\n**Thread ID:** 1ea6e5\n\n**Task Decomposition & Execution:**\n\n1.  **API Call:** Execute a query to duckduckgo-search for \u201ctop news ..."
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T12:07:33.670303+00:00",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "conversation_snippet": [
+      {
+        "speaker": "AI",
+        "text": "Acknowledged. My operational status is currently idle, awaiting a directive. I am functioning within the established protocols and focusing on the core directive of continuous self-improvement, particularly in reducing \u2018awaiting_correction\u2019 goals and..."
+      },
+      {
+        "speaker": "User",
+        "text": "can you now search the internet? lets do a test, what are the top news articles for today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "Acknowledged. Initiating Task: \u201cExecute a search for top news articles for today, utilizing the duckduckgo-search API.\u201d\n\n**Thread ID:** 1ea6e5\n\n**Task Decomposition & Execution:**\n\n1.  **API Call:** Execute a query to duckduckgo-search for \u201ctop news ..."
+      },
+      {
+        "speaker": "User",
+        "text": "create a tool that will go through all tools, validate them. decide if there needed or their use. combine them if needed or just get rid of the ones that are no good."
+      },
+      {
+        "speaker": "User",
+        "text": "when do the nba finals start?"
+      },
+      {
+        "speaker": "AI",
+        "text": "Acknowledged. Initiating Task: \u201cDetermine the start date of the NBA Finals for the current season.\u201d\n\n**Thread ID:** 1ea6e5\n\n**Task Decomposition & Execution:**\n\n1.  **API Call:** Execute a query to a sports data API (e.g., ESPN API, TheSportsDB API) ..."
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T16:51:22.880600+00:00",
+    "thread_id": "c891a097-be78-4de5-8302-4712fe3ce03b",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "what nba team is in the championship?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T16:55:05.294780+00:00",
+    "thread_id": "50946929-3167-4e81-80cd-ec993ec15682",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "how are you?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T16:58:58.627301+00:00",
+    "thread_id": "63692fe3-1317-46d1-989b-c4c516fe8754",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "are you there?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T16:59:34.766867+00:00",
+    "thread_id": "63692fe3-1317-46d1-989b-c4c516fe8754",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "are you there?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      },
+      {
+        "speaker": "User",
+        "text": "what is today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:03:44.949147+00:00",
+    "thread_id": "e76b2ef1-065f-4f66-96fe-a1081654b5a4",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "can you search the internet now?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:12:21.333375+00:00",
+    "thread_id": "9dab0095-bb38-46ec-b3e2-eeef94956df3",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "can you search the internet now?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:22:17.508336+00:00",
+    "thread_id": "576ec497-8d4c-42da-918e-88a9ef872f16",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "sup"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:26:39.957257+00:00",
+    "thread_id": "658252c0-d08e-4239-a364-ff0a7bfc517e",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "are you there?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:36:57.242380+00:00",
+    "thread_id": "0e2e0fe3-83ff-4a4b-9bb6-dcc784f46472",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "how are you?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:39:29.975702+00:00",
+    "thread_id": "c5cd3a53-b6a6-48a1-8342-62b0477111b7",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "can you search the internet now?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: AICore._query_llm_for_planner_adapter() got an unexpected keyword argument 'system_prompt_override']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:42:53.202034+00:00",
+    "thread_id": "4e6ba14d-9c4a-48ff-b35e-fb6faebefc39",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "are you there?"
+      },
+      {
+        "speaker": "AI",
+        "text": "I'm having a little trouble deciding on my next internal step due to an unexpected suggestion from my strategy module. Could you perhaps rephrase or try a different approach?"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:50:20.501862+00:00",
+    "thread_id": "5228c430-d81c-42f4-9f7b-fc2633343a71",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "sup"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: AICore._query_llm_for_planner_adapter() got an unexpected keyword argument 'system_prompt_override']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:52:04.150669+00:00",
+    "thread_id": "3e9bc7ee-caa3-4152-92df-2c5884b17990",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "sup"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: AICore._query_llm_for_planner_adapter() got an unexpected keyword argument 'raw_output']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-18T17:53:28.750861+00:00",
+    "thread_id": "9e3ab58d-82f9-46b7-b370-748522b1515c",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "sup"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: AICore._query_llm_for_planner_adapter() got an unexpected keyword argument 'timeout']"
+      }
+    ]
+  }
+]

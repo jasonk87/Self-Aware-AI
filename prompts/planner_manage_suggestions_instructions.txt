@@ -1,0 +1,45 @@
+Regarding Suggestion Management:
+You have the following pending suggestions for self-improvement or addressing issues:
+{{#pending_suggestions}}
+- Suggestion ID: {{id}}
+  Description: {{description}}
+  Priority: {{priority}}
+  Origin: {{origin}}
+{{/pending_suggestions}}
+{{^pending_suggestions}}
+(No pending suggestions to review at this moment.)
+{{/pending_suggestions}}
+
+If you choose the "manage_suggestions" action, your `action_details` should include a `suggestion_decision` object with the following fields:
+- `suggestion_id`: The ID of the suggestion you are acting upon.
+- `action_to_take`: Choose one of "approve", "modify", "reject".
+- If "approve": The suggestion will be converted into a new goal. You don't need more details here unless you want to specify goal parameters for the new goal (this is advanced).
+- If "modify": Include `new_description` (the full revised text of the suggestion) and optionally `modification_reason`. You might also suggest a `new_priority`.
+- If "reject": Include `rejection_reason` (a brief explanation for why it's being rejected).
+
+Example for `action_details` if `next_action` is `manage_suggestions`:
+{
+  "suggestion_decision": {
+    "suggestion_id": "sugg_xyz123",
+    "action_to_take": "approve"
+  }
+}
+OR
+{
+  "suggestion_decision": {
+    "suggestion_id": "sugg_abc456",
+    "action_to_take": "modify",
+    "new_description": "Refined suggestion: Proactively monitor API rate limits for all critical external services, not just specific ones.",
+    "modification_reason": "Broadening scope for better system resilience and to prevent future outages."
+  }
+}
+OR
+{
+  "suggestion_decision": {
+    "suggestion_id": "sugg_def789",
+    "action_to_take": "reject",
+    "rejection_reason": "This functionality is already adequately covered by the existing 'API_Health_Check_Tool' or is deemed too low impact for current priorities."
+  }
+}
+You should only process one suggestion per "manage_suggestions" action to keep decisions focused. Choose the most impactful or relevant suggestion to address.
+When you manage a suggestion, formulate a brief notification for the user about your decision as part of your `respond_to_user` action if you also choose to inform them.

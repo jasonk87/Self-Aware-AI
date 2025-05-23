@@ -1,0 +1,371 @@
+[
+  {
+    "goal_id": "f7ffdeab-2a24-4cfb-b796-e222d38fabcb",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: information_gathering. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T22:22:12.175790+00:00"
+  },
+  {
+    "goal_id": "82ae3b79-773f-43c1-98a0-b77451a24a5f",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: set_up_a_python_development_environment__d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T22:29:44.097671+00:00"
+  },
+  {
+    "goal_id": "6a207382-a31d-4dc8-8317-af1d9c496dba",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_generation_tool. Tool: modify_the_script_in_thread___d8553e_to__d8553e.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-17T22:36:08.007615+00:00"
+  },
+  {
+    "goal_id": "b50ff9d0-a5ff-4438-9429-dd0b875c9158",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: command_execution. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-17T22:41:30.077961+00:00"
+  },
+  {
+    "goal_id": "bcf7b3d2-f4d3-4f18-8fe8-5bfe750f3d93",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: implement_error_handling_for_api_request_d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T22:47:51.544140+00:00"
+  },
+  {
+    "goal_id": "77933efc-70c0-4c21-94f7-7a34b7373e85",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: implement_input_field_for_user_query__d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T22:53:27.082474+00:00"
+  },
+  {
+    "goal_id": "9a3c1769-bc03-46ff-a5e5-707a344fd3fd",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: implement_search_functionality_using_the_d8553e.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-17T23:01:36.890327+00:00"
+  },
+  {
+    "goal_id": "7eccd953-ba68-48f7-9ca5-cf6b4db491d0",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: parse_the_api_response_data__d8553e.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-17T23:09:49.955409+00:00"
+  },
+  {
+    "goal_id": "dcebe073-ba87-476d-8a94-50335cf764b8",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: format_the_search_results_for_display__d8553e.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-17T23:18:03.629224+00:00"
+  },
+  {
+    "goal_id": "ff161863-f9b5-421d-afd9-626d0876f5d1",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: add_basic_ui_for_displaying_search_resul_d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T23:24:23.301066+00:00"
+  },
+  {
+    "goal_id": "59e71c2e-8e82-44a3-aeef-75f2ae49c521",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: test_the_tool_with_various_search_querie_d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T23:31:11.013632+00:00"
+  },
+  {
+    "goal_id": "4665d58b-9a28-45b6-a75b-9b2d53af69ad",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: information_gathering. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T23:36:16.963768+00:00"
+  },
+  {
+    "goal_id": "ee6a723c-9b1f-4d32-9ff5-463c0003d963",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: consider_adding_logging_for_debugging__d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T23:42:09.376524+00:00"
+  },
+  {
+    "goal_id": "39c086be-877e-4428-b83d-c0315fc413ab",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: implement_a_simple_command_line_interfac_d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T23:48:42.924987+00:00"
+  },
+  {
+    "goal_id": "2b488e4f-46f2-48ca-9063-c3c75b783d6a",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: add_options_for_customizing_search_param_d8553e.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-17T23:55:46.102293+00:00"
+  },
+  {
+    "goal_id": "66c929fb-c510-4a27-8714-ef7ede68eff2",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 1. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:00:10.782487+00:00"
+  },
+  {
+    "goal_id": "23bdbe43-7614-4a2f-9e20-0cccbf41786f",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 1. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:02:30.065354+00:00"
+  },
+  {
+    "goal_id": "429decc5-621b-4ab9-b360-9ab881edbf93",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 1. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:05:40.579014+00:00"
+  },
+  {
+    "goal_id": "5f3eec1e-7b74-409f-bf4f-91242ac3b4c3",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 1. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:07:57.041899+00:00"
+  },
+  {
+    "goal_id": "e18ea8e7-203b-493a-a5d8-42647c9e8f53",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 1. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:08:42.088511+00:00"
+  },
+  {
+    "goal_id": "176ca02b-a500-48bd-89eb-bb7b9e540dec",
+    "analytical_score": -26,
+    "analytical_notes": "Status: failed_max_retries, Prio: 2, Src: AI_self_correction, Attempts: 2. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P2): -6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": "LLM response parsing error: Expecting value: line 1 column 1 (char 0)",
+    "final_score_assigned": -26,
+    "timestamp": "2025-05-18T00:10:05.733102+00:00"
+  },
+  {
+    "goal_id": "4842358e-2938-4bfb-aa44-5f231aa9d7de",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 0. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:10:05.733612+00:00"
+  },
+  {
+    "goal_id": "3e688172-71fa-4059-8b0f-466ecf41ddf0",
+    "analytical_score": -26,
+    "analytical_notes": "Status: failed_max_retries, Prio: 2, Src: AI_self_correction, Attempts: 2. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P2): -6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": "LLM response parsing error: Expecting value: line 1 column 1 (char 0)",
+    "final_score_assigned": -26,
+    "timestamp": "2025-05-18T00:11:50.880440+00:00"
+  },
+  {
+    "goal_id": "7eae1eb9-5c5a-4234-a5c0-d2110c0a9ee7",
+    "analytical_score": -26,
+    "analytical_notes": "Status: failed_max_retries, Prio: 2, Src: AI_self_correction, Attempts: 2. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P2): -6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": "LLM response parsing error: Expecting value: line 1 column 1 (char 0)",
+    "final_score_assigned": -26,
+    "timestamp": "2025-05-18T00:32:15.635018+00:00"
+  },
+  {
+    "goal_id": "a6890d8a-6bb0-4a12-9777-7714b2371e20",
+    "analytical_score": -15,
+    "analytical_notes": "Status: build_failed, Prio: 2, Src: AI_self_correction, Attempts: 1. FailCat: RefinementTargetMissing. SubtaskCat: code_refinement. Base penalty for build failure: -12. General priority failure adjustment (P2): -3.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -15,
+    "timestamp": "2025-05-18T00:33:42.546366+00:00"
+  },
+  {
+    "goal_id": "9b0f137c-f6ff-45f7-b040-e18f8bf2a476",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_generation_tool. Tool: modify_the_script__tools_analyze_my_rece_9b6997.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-18T00:55:03.437239+00:00"
+  },
+  {
+    "goal_id": "b9cd4956-97cf-4be0-91d2-627697853676",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: user, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T01:16:21.330640+00:00"
+  },
+  {
+    "goal_id": "4d35aead-f3c1-4e1b-a287-345e9af6922a",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: create_a_tool_to_search_the_internet__pa_a9140d.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T01:16:21.332345+00:00"
+  },
+  {
+    "goal_id": "d26dc97b-9f7c-47b2-b408-d2a3c4886f86",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: suggestion_approved, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T03:58:20.324782+00:00"
+  },
+  {
+    "goal_id": "6c2cee15-39c3-4fa0-8616-92351014b12d",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: fix_tool__tools_test_the_search_function_3f8dc5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T03:58:20.326514+00:00"
+  },
+  {
+    "goal_id": "bf7fe16d-07dd-4fa2-abcd-c9af2f8e8ffd",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: suggestion_approved, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T12:13:03.163888+00:00"
+  },
+  {
+    "goal_id": "597c3b8b-2339-485e-9d2e-53f9ba98d018",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: _analyze_the__create_a_tool_to_search_th_1f8cc0.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T12:13:03.163888+00:00"
+  },
+  {
+    "goal_id": "4e4ebec9-ce46-471c-8bb8-60bb53eb2d31",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: information_gathering. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T15:45:21.309076+00:00"
+  },
+  {
+    "goal_id": "a274e66c-dd5a-4178-9a77-52e7de3c9b5d",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: identify_the_winners_of_the_eastern_and__1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T15:47:40.388641+00:00"
+  },
+  {
+    "goal_id": "241db287-2652-41a0-a99a-6aa2dc6ae61a",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: confirm_the_two_teams_playing_in_the_202_1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:04:30.757781+00:00"
+  },
+  {
+    "goal_id": "ddd9493a-23d0-4ead-996e-ca214f3b1e81",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: information_gathering. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:07:05.707485+00:00"
+  },
+  {
+    "goal_id": "0cdfe4d0-b4d2-4027-bfa5-7a095823f8f7",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: verify_the_game_schedule_for_the_2023_nb_1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:11:26.681991+00:00"
+  },
+  {
+    "goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: user, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:18:15.631992+00:00"
+  },
+  {
+    "goal_id": "f9ffa60a-5db4-4e53-8df2-64fabfdd6d6d",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: summarize_the_results_of_each_game_in_th_1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:18:15.631992+00:00"
+  },
+  {
+    "goal_id": "6c39e1ab-a9fd-43fa-85fe-916476a7bbbf",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: user, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:24:01.925756+00:00"
+  },
+  {
+    "goal_id": "443042d8-f025-4a30-b563-170ff2a99626",
+    "analytical_score": 24,
+    "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: __d__python_python_exe_c__users_owner_de_bb46f8.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 24,
+    "timestamp": "2025-05-18T16:24:01.929169+00:00"
+  }
+]

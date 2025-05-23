@@ -1,0 +1,955 @@
+[
+  {
+    "goal_id": "b9cd4956-97cf-4be0-91d2-627697853676",
+    "thread_id": "e6b2b1f8-d817-4f3c-8b09-9b0f8ca9140d",
+    "goal": "create a tool to search the internet, parse the results, and return them in a formatted manner using the duckducksearch module",
+    "source": "user",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "4d35aead-f3c1-4e1b-a287-345e9af6922a"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T01:02:06.309350Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "history": [
+      {
+        "timestamp": "2025-05-18T01:02:06.309350Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..a9140d)"
+      },
+      {
+        "timestamp": "2025-05-18T01:03:07.526843Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      },
+      {
+        "timestamp": "2025-05-18T01:10:18.297089Z",
+        "status": "completed",
+        "message": "All subtasks successfully completed."
+      }
+    ],
+    "subtask_descriptions": [
+      "create a tool to search the internet, parse the results, and return them in a formatted manner using the duckducksearch module"
+    ],
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: user, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T01:16:21.330520+00:00"
+    }
+  },
+  {
+    "goal_id": "4d35aead-f3c1-4e1b-a287-345e9af6922a",
+    "thread_id": "e6b2b1f8-d817-4f3c-8b09-9b0f8ca9140d",
+    "goal": "create a tool to search the internet, parse the results, and return them in a formatted manner using the duckducksearch module",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "create a tool to search the internet, parse the results, and return them in a formatted manner using the duckducksearch module",
+    "parent_goal_id": "b9cd4956-97cf-4be0-91d2-627697853676",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T01:03:07.526843Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T01:03:07.526843Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T01:03:07.527349Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T01:04:39.153672Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": "tools\\create_a_tool_to_search_the_internet__pa_a9140d.py",
+    "execution_result": {
+      "tool": "tools\\create_a_tool_to_search_the_internet__pa_a9140d.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: create_a_tool_to_search_the_internet__pa_a9140d.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T01:16:21.332345+00:00"
+    }
+  },
+  {
+    "goal_id": "d26dc97b-9f7c-47b2-b408-d2a3c4886f86",
+    "thread_id": "f607d5a0-ae98-4dbc-a67e-7e2de03f8dc5",
+    "goal": "Fix tool `tools\\test_the_search_functionality_with_various_queries.py` for thread `..a9140d` due to potential rate limit issues during extensive querying \u2013 implement a dynamic query frequency adjustment based on API response times and error rates.",
+    "source": "suggestion_approved",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "6c2cee15-39c3-4fa0-8616-92351014b12d"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T03:45:30.222727Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "history": [
+      {
+        "timestamp": "2025-05-18T03:45:30.222727Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..3f8dc5)"
+      },
+      {
+        "timestamp": "2025-05-18T03:45:48.632047Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      },
+      {
+        "timestamp": "2025-05-18T03:53:07.258487Z",
+        "status": "completed",
+        "message": "All subtasks successfully completed."
+      }
+    ],
+    "approved_by": "user",
+    "subtask_descriptions": [
+      "Fix tool `tools\\test_the_search_functionality_with_various_queries.py` for thread `..a9140d` due to potential rate limit issues during extensive querying \u2013 implement a dynamic query frequency adjustment based on API response times and error rates."
+    ],
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: suggestion_approved, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T03:58:20.324782+00:00"
+    }
+  },
+  {
+    "goal_id": "6c2cee15-39c3-4fa0-8616-92351014b12d",
+    "thread_id": "f607d5a0-ae98-4dbc-a67e-7e2de03f8dc5",
+    "goal": "Fix tool `tools\\test_the_search_functionality_with_various_queries.py` for thread `..a9140d` due to potential rate limit issues during extensive querying \u2013 implement a dynamic query frequency adjustment based on API response times and error rates.",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "Fix tool `tools\\test_the_search_functionality_with_various_queries.py` for thread `..a9140d` due to potential rate limit issues during extensive querying \u2013 implement a dynamic query frequency adjustment based on API response times and error rates.",
+    "parent_goal_id": "d26dc97b-9f7c-47b2-b408-d2a3c4886f86",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T03:45:48.632047Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T03:45:48.632047Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T03:45:48.632047Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T03:47:42.535705Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": "tools\\fix_tool__tools_test_the_search_function_3f8dc5.py",
+    "execution_result": {
+      "tool": "tools\\fix_tool__tools_test_the_search_function_3f8dc5.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: fix_tool__tools_test_the_search_function_3f8dc5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T03:58:20.326514+00:00"
+    }
+  },
+  {
+    "goal_id": "bf7fe16d-07dd-4fa2-abcd-c9af2f8e8ffd",
+    "thread_id": "7955edd6-1817-48e3-b700-9108eb1f8cc0",
+    "goal": "\"Analyze the `create_a_tool_to_search_the_internet__pa_a9140d` tool\u2019s response parsing logic for potential rate limit triggers, specifically focusing on the handling of JSON responses from the DuckDuckGo search API. For thread pa_a9140d, implement a tiered parsing strategy with aggressive schema validation and retry mechanisms, prioritizing efficient data extraction to minimize API calls and potential rate limit violations. This will also include logging all parsing attempts and successes/failures for further analysis.\"",
+    "source": "suggestion_approved",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "597c3b8b-2339-485e-9d2e-53f9ba98d018"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T11:53:07.436327Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "history": [
+      {
+        "timestamp": "2025-05-18T11:53:07.436327Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..1f8cc0)"
+      },
+      {
+        "timestamp": "2025-05-18T11:53:25.143848Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      },
+      {
+        "timestamp": "2025-05-18T12:03:52.958251Z",
+        "status": "completed",
+        "message": "All subtasks successfully completed."
+      }
+    ],
+    "approved_by": "user",
+    "subtask_descriptions": [
+      "\"Analyze the `create_a_tool_to_search_the_internet__pa_a9140d` tool\u2019s response parsing logic for potential rate limit triggers, specifically focusing on the handling of JSON responses from the DuckDuckGo search API. For thread pa_a9140d, implement a tiered parsing strategy with aggressive schema validation and retry mechanisms, prioritizing efficient data extraction to minimize API calls and potential rate limit violations. This will also include logging all parsing attempts and successes/failures for further analysis.\""
+    ],
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: suggestion_approved, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T12:13:03.163888+00:00"
+    }
+  },
+  {
+    "goal_id": "597c3b8b-2339-485e-9d2e-53f9ba98d018",
+    "thread_id": "7955edd6-1817-48e3-b700-9108eb1f8cc0",
+    "goal": "\"Analyze the `create_a_tool_to_search_the_internet__pa_a9140d` tool\u2019s response parsing logic for potential rate limit triggers, specifically focusing on the handling of JSON responses from the DuckDuckGo search API. For thread pa_a9140d, implement a tiered parsing strategy with aggressive schema validation and retry mechanisms, prioritizing efficient data extraction to minimize API calls and potential rate limit violations. This will also include logging all parsing attempts and successes/failures for further analysis.\"",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "\"Analyze the `create_a_tool_to_search_the_internet__pa_a9140d` tool\u2019s response parsing logic for potential rate limit triggers, specifically focusing on the handling of JSON responses from the DuckDuckGo search API. For thread pa_a9140d, implement a tiered parsing strategy with aggressive schema validation and retry mechanisms, prioritizing efficient data extraction to minimize API calls and potential rate limit violations. This will also include logging all parsing attempts and successes/failures for further analysis.\"",
+    "parent_goal_id": "bf7fe16d-07dd-4fa2-abcd-c9af2f8e8ffd",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T11:53:25.143848Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T11:53:25.143848Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T11:53:25.148083Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T11:58:21.085595Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": "tools\\_analyze_the__create_a_tool_to_search_th_1f8cc0.py",
+    "execution_result": {
+      "tool": "tools\\_analyze_the__create_a_tool_to_search_th_1f8cc0.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: _analyze_the__create_a_tool_to_search_th_1f8cc0.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T12:13:03.163888+00:00"
+    }
+  },
+  {
+    "goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "well, you never told me who was playing in the nba finals.",
+    "source": "user",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "4e4ebec9-ce46-471c-8bb8-60bb53eb2d31",
+      "a274e66c-dd5a-4178-9a77-52e7de3c9b5d",
+      "241db287-2652-41a0-a99a-6aa2dc6ae61a",
+      "ddd9493a-23d0-4ead-996e-ca214f3b1e81",
+      "0cdfe4d0-b4d2-4027-bfa5-7a095823f8f7",
+      "f9ffa60a-5db4-4e53-8df2-64fabfdd6d6d"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:13:46.009110Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:13:46.009110Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..1ea6e5)"
+      },
+      {
+        "timestamp": "2025-05-18T12:15:30.061599Z",
+        "status": "decomposed",
+        "message": "Decomposed into 6 subtasks via standard method."
+      },
+      {
+        "timestamp": "2025-05-18T16:16:04.527345Z",
+        "status": "completed",
+        "message": "All subtasks successfully completed."
+      }
+    ],
+    "subtask_descriptions": [
+      "Research NBA teams competing in the 2023 playoffs",
+      "Identify the winners of the Eastern and Western Conference playoffs",
+      "Confirm the two teams playing in the 2023 NBA Finals",
+      "Document the names of the players on each team in the 2023 NBA Finals",
+      "Verify the game schedule for the 2023 NBA Finals",
+      "Summarize the results of each game in the 2023 NBA Finals"
+    ],
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: user, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:18:15.631992+00:00"
+    }
+  },
+  {
+    "goal_id": "4e4ebec9-ce46-471c-8bb8-60bb53eb2d31",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "Research NBA teams competing in the 2023 playoffs",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "well, you never told me who was playing in the nba finals.",
+    "parent_goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:15:30.061599Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:15:30.061599Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T15:45:03.054830Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T15:45:20.980146Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System",
+    "subtasks": null,
+    "tool_file": null,
+    "execution_result": {
+      "status": "success",
+      "information_gathered": "The 2023 NBA Playoffs saw the following teams compete:\n\n**Eastern Conference:** Boston Celtics, Cleveland Cavaliers, Miami Heat, Philadelphia 76ers, Toronto Raptors, and Brooklyn Nets.\n\n**Western Conference:** Denver Nuggets, Golden State Warriors, Los Angeles Lakers, Memphis Grizzlies, Sacramento Kings, and Oklahoma City Thunder."
+    },
+    "error": null,
+    "subtask_category": "information_gathering",
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: information_gathering. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T15:45:21.309076+00:00"
+    }
+  },
+  {
+    "goal_id": "a274e66c-dd5a-4178-9a77-52e7de3c9b5d",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "Identify the winners of the Eastern and Western Conference playoffs",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "well, you never told me who was playing in the nba finals.",
+    "parent_goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:15:30.061599Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:15:30.061599Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T15:45:28.318456Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T15:47:40.372478Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System",
+    "subtasks": null,
+    "tool_file": "tools\\identify_the_winners_of_the_eastern_and__1ea6e5.py",
+    "execution_result": {
+      "tool": "tools\\identify_the_winners_of_the_eastern_and__1ea6e5.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "subtask_category": "code_generation_tool",
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: identify_the_winners_of_the_eastern_and__1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T15:47:40.388641+00:00"
+    }
+  },
+  {
+    "goal_id": "241db287-2652-41a0-a99a-6aa2dc6ae61a",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "Confirm the two teams playing in the 2023 NBA Finals",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "well, you never told me who was playing in the nba finals.",
+    "parent_goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:15:30.061599Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:15:30.061599Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T15:59:21.924062Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T16:01:37.484355Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System",
+    "subtasks": null,
+    "tool_file": "tools\\confirm_the_two_teams_playing_in_the_202_1ea6e5.py",
+    "execution_result": {
+      "tool": "tools\\confirm_the_two_teams_playing_in_the_202_1ea6e5.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "subtask_category": "code_generation_tool",
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: confirm_the_two_teams_playing_in_the_202_1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:04:30.757781+00:00"
+    }
+  },
+  {
+    "goal_id": "ddd9493a-23d0-4ead-996e-ca214f3b1e81",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "Document the names of the players on each team in the 2023 NBA Finals",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "well, you never told me who was playing in the nba finals.",
+    "parent_goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:15:30.061599Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:15:30.061599Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T16:04:37.770049Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T16:04:51.359548Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System",
+    "subtasks": null,
+    "tool_file": null,
+    "execution_result": {
+      "status": "success",
+      "information_gathered": "Boston Celtics: Jaylen Brown, Jayson Tatum, Derrick White, Marcus Smart, Al Horford, Robert Williams III\nDenver Nuggets: Nikola Joki\u0107, Jamal Murray, Michael Porter Jr., Aaron Gordon, Kentavious Caldwell-Pope, Bruce Brown, Christian Braun"
+    },
+    "error": null,
+    "subtask_category": "information_gathering",
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: information_gathering. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:07:05.707485+00:00"
+    }
+  },
+  {
+    "goal_id": "0cdfe4d0-b4d2-4027-bfa5-7a095823f8f7",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "Verify the game schedule for the 2023 NBA Finals",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "well, you never told me who was playing in the nba finals.",
+    "parent_goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:15:30.061599Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:15:30.061599Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T16:07:12.712639Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T16:09:13.604696Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System",
+    "subtasks": null,
+    "tool_file": "tools\\verify_the_game_schedule_for_the_2023_nb_1ea6e5.py",
+    "execution_result": {
+      "tool": "tools\\verify_the_game_schedule_for_the_2023_nb_1ea6e5.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "subtask_category": "code_generation_tool",
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: verify_the_game_schedule_for_the_2023_nb_1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:11:26.681991+00:00"
+    }
+  },
+  {
+    "goal_id": "f9ffa60a-5db4-4e53-8df2-64fabfdd6d6d",
+    "thread_id": "65bea198-e3ee-4866-8d41-1a458d1ea6e5",
+    "goal": "Summarize the results of each game in the 2023 NBA Finals",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "well, you never told me who was playing in the nba finals.",
+    "parent_goal_id": "6b6c22dd-3dc6-427f-9978-b3123bef2112",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T12:15:30.062105Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T12:15:30.062105Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T16:11:33.697251Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T16:13:51.812960Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System",
+    "subtasks": null,
+    "tool_file": "tools\\summarize_the_results_of_each_game_in_th_1ea6e5.py",
+    "execution_result": {
+      "tool": "tools\\summarize_the_results_of_each_game_in_th_1ea6e5.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "subtask_category": "code_generation_tool",
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: summarize_the_results_of_each_game_in_th_1ea6e5.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:18:15.631992+00:00"
+    }
+  },
+  {
+    "goal_id": "6c39e1ab-a9fd-43fa-85fe-916476a7bbbf",
+    "thread_id": "7721257d-fec9-4c32-92be-fd36c5bb46f8",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "user",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "443042d8-f025-4a30-b563-170ff2a99626"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T14:32:47.785020Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "history": [
+      {
+        "timestamp": "2025-05-18T14:32:47.785020Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..bb46f8)"
+      },
+      {
+        "timestamp": "2025-05-18T15:45:03.054312Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      },
+      {
+        "timestamp": "2025-05-18T16:21:50.147718Z",
+        "status": "completed",
+        "message": "All subtasks successfully completed."
+      }
+    ],
+    "subtask_descriptions": [
+      "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py"
+    ],
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: user, Attempts: 0. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:24:01.925756+00:00"
+    }
+  },
+  {
+    "goal_id": "443042d8-f025-4a30-b563-170ff2a99626",
+    "thread_id": "7721257d-fec9-4c32-92be-fd36c5bb46f8",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "decomposition",
+    "status": "completed",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "parent_goal_id": "6c39e1ab-a9fd-43fa-85fe-916476a7bbbf",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-18T15:45:03.054312Z",
+    "history": [
+      {
+        "timestamp": "2025-05-18T15:45:03.054312Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-18T16:18:22.640634Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-18T16:19:39.991147Z",
+        "status": "completed",
+        "message": "Execution successful."
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": "tools\\__d__python_python_exe_c__users_owner_de_bb46f8.py",
+    "execution_result": {
+      "tool": "tools\\__d__python_python_exe_c__users_owner_de_bb46f8.py",
+      "status": "success",
+      "output": "",
+      "error": ""
+    },
+    "error": null,
+    "evaluation": {
+      "final_score": 24,
+      "analytical_score": 24,
+      "analytical_notes": "Status: completed, Prio: 3, Src: decomposition, Attempts: 0. SubtaskCat: code_generation_tool. Tool: __d__python_python_exe_c__users_owner_de_bb46f8.py. Base score for completion: +15. First attempt success: +5. Priority completion bonus (P3): +4.",
+      "last_evaluated_at": "2025-05-18T16:24:01.929169+00:00"
+    }
+  },
+  {
+    "goal_id": "ccf89509-2048-4a00-8310-613b5b603a89",
+    "thread_id": "42cdeca7-3d26-4792-adbf-e160fa6b5bb7",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "user_console",
+    "status": "decomposed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "38754cbe-50fc-4ad2-89eb-a3c2e4a26628"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-20T22:03:46.888337Z",
+    "updated_at": "2025-05-20T22:03:46.888337Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "evaluation": null,
+    "history": [
+      {
+        "timestamp": "2025-05-20T22:03:46.888337Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..6b5bb7)"
+      },
+      {
+        "timestamp": "2025-05-23T22:36:21.387650Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      }
+    ],
+    "subtask_descriptions": [
+      "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py"
+    ]
+  },
+  {
+    "goal_id": "a5400560-939b-40db-ba52-62df13833f8d",
+    "thread_id": "b4d95c53-77b1-4dee-9375-ed4d6b35d6f9",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "user_console",
+    "status": "decomposed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "5f1b5110-1f1e-4d93-841c-ad6b17682a19"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-22T23:14:44.960911Z",
+    "updated_at": "2025-05-22T23:14:44.960911Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "evaluation": null,
+    "history": [
+      {
+        "timestamp": "2025-05-22T23:14:44.960911Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..35d6f9)"
+      },
+      {
+        "timestamp": "2025-05-23T22:40:31.701868Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      }
+    ],
+    "subtask_descriptions": [
+      "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py"
+    ]
+  },
+  {
+    "goal_id": "d3554aa7-6454-4aaa-9c5e-ed47f29434d7",
+    "thread_id": "0e404ea2-c796-4b53-8015-1008b5f72412",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "user_console",
+    "status": "decomposed",
+    "priority": 3,
+    "is_subtask": false,
+    "parent_goal_id": null,
+    "parent": null,
+    "subtasks": [
+      "f79ab23f-4d6a-4318-826f-20c26ce8300d"
+    ],
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-22T23:20:45.771718Z",
+    "updated_at": "2025-05-22T23:20:45.771718Z",
+    "tool_file": null,
+    "execution_result": null,
+    "error": null,
+    "evaluation": null,
+    "history": [
+      {
+        "timestamp": "2025-05-22T23:20:45.771718Z",
+        "status": "pending",
+        "action": "Goal added via console (Priority: 3, Thread: ..f72412)"
+      },
+      {
+        "timestamp": "2025-05-23T22:43:04.810271Z",
+        "status": "decomposed",
+        "message": "Classified as single tool creation; creating one direct build subtask."
+      }
+    ],
+    "subtask_descriptions": [
+      "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py"
+    ]
+  },
+  {
+    "goal_id": "38754cbe-50fc-4ad2-89eb-a3c2e4a26628",
+    "thread_id": "42cdeca7-3d26-4792-adbf-e160fa6b5bb7",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "decomposition",
+    "status": "awaiting_correction",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "parent_goal_id": "ccf89509-2048-4a00-8310-613b5b603a89",
+    "self_correction_attempts": 1,
+    "failure_category": "ToolExecutionFailure",
+    "created_at": "2025-05-23T22:36:21.387650Z",
+    "history": [
+      {
+        "timestamp": "2025-05-23T22:36:21.387650Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      },
+      {
+        "timestamp": "2025-05-23T22:43:04.818402Z",
+        "status": "approved",
+        "message": "Auto-approved for processing by executor."
+      },
+      {
+        "timestamp": "2025-05-23T22:44:04.775154Z",
+        "status": "executed_with_errors",
+        "message": "Failed. Error: Tool execution error: invalid syntax (__d__python_python_exe_c__users_owner_de_6b5bb7.py, line 1)"
+      },
+      {
+        "timestamp": "2025-05-23T22:44:29.316081Z",
+        "status": "awaiting_correction",
+        "message": "Self-correction goal GID ..641979 added: Modify the `tools\\__d__python_python_exe_c__users_owner_de_6b5bb7.py` ..."
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": "tools\\__d__python_python_exe_c__users_owner_de_6b5bb7.py",
+    "execution_result": {
+      "status": "error",
+      "error": "Tool execution error: invalid syntax (__d__python_python_exe_c__users_owner_de_6b5bb7.py, line 1)",
+      "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\Owner\\Desktop\\Self-Aware\\tool_runner.py\", line 65, in run_tool_safely\n    spec.loader.exec_module(module)\n  File \"<frozen importlib._bootstrap_external>\", line 991, in exec_module\n  File \"<frozen importlib._bootstrap_external>\", line 1129, in get_code\n  File \"<frozen importlib._bootstrap_external>\", line 1059, in source_to_code\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"C:\\Users\\Owner\\Desktop\\Self-Aware\\tools\\__d__python_python_exe_c__users_owner_de_6b5bb7.py\", line 1\n    ```python\n    ^\nSyntaxError: invalid syntax\n"
+    },
+    "error": "Tool execution error: invalid syntax (__d__python_python_exe_c__users_owner_de_6b5bb7.py, line 1)"
+  },
+  {
+    "goal_id": "5f1b5110-1f1e-4d93-841c-ad6b17682a19",
+    "thread_id": "b4d95c53-77b1-4dee-9375-ed4d6b35d6f9",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "decomposition",
+    "status": "pending",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "parent_goal_id": "a5400560-939b-40db-ba52-62df13833f8d",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-23T22:40:31.701868Z",
+    "history": [
+      {
+        "timestamp": "2025-05-23T22:40:31.701868Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": null,
+    "execution_result": null,
+    "error": null
+  },
+  {
+    "goal_id": "f79ab23f-4d6a-4318-826f-20c26ce8300d",
+    "thread_id": "0e404ea2-c796-4b53-8015-1008b5f72412",
+    "goal": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "source": "decomposition",
+    "status": "pending",
+    "priority": 3,
+    "is_subtask": true,
+    "parent": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "parent_goal_id": "d3554aa7-6454-4aaa-9c5e-ed47f29434d7",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-23T22:43:04.810271Z",
+    "history": [
+      {
+        "timestamp": "2025-05-23T22:43:04.810271Z",
+        "status": "pending",
+        "action": "Goal added (Source: decomposition, Priority: 3)"
+      }
+    ],
+    "approved_by": "AI_System_Classifier",
+    "subtask_category": "code_generation_tool",
+    "subtasks": null,
+    "tool_file": null,
+    "execution_result": null,
+    "error": null
+  },
+  {
+    "goal_id": "a3e7149c-0c79-4420-b3ea-b3e254641979",
+    "thread_id": "42cdeca7-3d26-4792-adbf-e160fa6b5bb7",
+    "goal": "Modify the `tools\\__d__python_python_exe_c__users_owner_de_6b5bb7.py` script to correct the invalid syntax error related to thread ..6b5bb7.",
+    "source": "AI_self_correction",
+    "status": "pending",
+    "priority": 2,
+    "is_subtask": true,
+    "parent": "& D:/python/python.exe c:/Users/Owner/Desktop/Self-Aware/console_ai.py",
+    "parent_goal_id": "ccf89509-2048-4a00-8310-613b5b603a89",
+    "self_correction_attempts": 0,
+    "failure_category": null,
+    "created_at": "2025-05-23T22:44:29.316081Z",
+    "history": [
+      {
+        "timestamp": "2025-05-23T22:44:29.316081Z",
+        "status": "pending",
+        "action": "Goal added (Source: AI_self_correction, Priority: 2)"
+      }
+    ],
+    "approved_by": "AI_System",
+    "related_to_failed_goal_id": "38754cbe-50fc-4ad2-89eb-a3c2e4a26628",
+    "subtask_category": "code_generation_tool"
+  }
+]

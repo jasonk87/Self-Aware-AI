@@ -1,0 +1,398 @@
+"""Core AI system that manages all components and operations."""
+import os
+import sys
+import json
+import queue
+import time
+import uuid
+import http.client
+import urllib.parse
+import traceback
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, List, Callable, Union
+try:
+    from notifier_module import get_current_version as get_version
+except ImportError:
+    def get_version(): return "0.0.0"
+
+# Public exports (these need to be at module level for console_ai.py)
+MODEL_NAME = "gemma3:4B"  # Will be updated by AICore instance
+OLLAMA_URL = "http://localhost:11434/api/generate"  # Default URL, can be overridden by config
+response_queue = queue.Queue()
+log_message_queue = queue.Queue()
+get_response_async = None  # Will be set by AICore instance
+
+# Internal state
+_ai_core_instance_singleton: Optional['AICore'] = None  # Module singleton instance
+
+def get_current_version() -> str:
+    """Get current version, with fallback"""
+    try:
+        return get_version()
+    except Exception as e:
+        log_background_message("ERROR", f"Failed to get version: {e}")
+        return "0.0.0"
+
+def query_llm_internal(
+    prompt_text: str,
+    system_prompt_override: Optional[str] = None,
+    raw_output: bool = False,
+    timeout: int = 300,
+    model_override: Optional[str] = None,
+    ollama_url_override: Optional[str] = None,
+    options_override: Optional[Dict[str, Any]] = None
+) -> str:
+    """Query the LLM using http.client"""
+    try:
+        if not prompt_text:
+            return "[Error: Empty prompt]"
+
+        current_url = ollama_url_override or OLLAMA_URL
+        parsed_url = urllib.parse.urlparse(current_url)
+        
+        # Prepare prompt
+        final_prompt = prompt_text if raw_output else (
+            f"{system_prompt_override}\n\nUser: {prompt_text}\nAI:"
+            if system_prompt_override else
+            f"User: {prompt_text}\nAI:"
+        )
+        
+        # Prepare payload
+        payload = {
+            "model": model_override or MODEL_NAME,
+            "prompt": final_prompt,
+            "stream": False
+        }
+        if options_override:
+            payload.update(options_override)
+            
+        payload_json = json.dumps(payload)
+        
+        # Setup connection
+        conn = http.client.HTTPConnection(parsed_url.netloc, timeout=timeout)
+        headers = {"Content-Type": "application/json"}
+        
+        try:
+            conn.request("POST", parsed_url.path, payload_json, headers)
+            response = conn.getresponse()
+            response_text = response.read().decode()
+            
+            if response.status != 200:
+                error_msg = f"LLM API error {response.status}: {response_text}"
+                log_background_message("ERROR", error_msg)
+                return f"[Error: {error_msg}]"
+                
+            response_data = json.loads(response_text)
+            return response_data.get("response", "[Error: No response in LLM output]")
+            
+        finally:
+            conn.close()
+            
+    except json.JSONDecodeError:
+        log_background_message("ERROR", "Failed to parse LLM response as JSON")
+        return "[Error: Invalid JSON response from LLM]"
+    except Exception as e:
+        log_background_message("ERROR", f"LLM query failed: {str(e)}")
+        return f"[Error: LLM query failed - {str(e)}]"
+
+def log_background_message(level: str, message: str):
+    """Log a message to the queue and console"""
+    try:
+        log_message_queue.put((level, f"(ai_core) {message}"))
+    except Exception as e:
+        print(f"[{level}] (ai_core_direct) {message} (Queue error: {e})")
+
+def initialize_ai_core_singleton(config_path: str = "config.json", logger_override=None) -> Optional['AICore']:
+    """Initialize and return the AICore singleton instance"""
+    global _ai_core_instance_singleton, MODEL_NAME, get_response_async
+    
+    if _ai_core_instance_singleton is None:
+        logger = logger_override if logger_override else lambda *parts: print(
+            f"[{parts[0] if parts else 'INFO'}]",
+            *parts[1:]
+        )
+        
+        try:
+            _ai_core_instance_singleton = AICore(config_file=config_path, logger_func=logger)
+            
+            # Update module-level exports
+            MODEL_NAME = _ai_core_instance_singleton.current_llm_model
+            get_response_async = _ai_core_instance_singleton.get_response_for_user_input_async
+            
+            logger("INFO", "(ai_core) AICore singleton instance initialized successfully")
+            return _ai_core_instance_singleton
+            
+        except Exception as e:
+            logger("CRITICAL", f"(ai_core) Failed to initialize AICore singleton: {e}\n{traceback.format_exc()}")
+            _ai_core_instance_singleton = None
+            MODEL_NAME = "N/A (ai_core_not_loaded)"
+            return None
+            
+    return _ai_core_instance_singleton
+
+class AICore:
+    """Core AI system that manages all components and operations."""
+    
+    # Class constants
+    _REQUIRED_COMPONENTS = {
+        'mission_manager': ('mission_manager', 'MissionManager'),
+        'prompt_manager': ('prompt_manager', 'PromptManager'),
+        'suggestion_engine': ('suggestion_engine', 'SuggestionEngine'),
+        'goal_monitor': ('goal_monitor', 'GoalMonitor'),
+        'planner': ('planner_module', 'Planner'),
+        'evaluator': ('evaluator', 'Evaluator'),
+        'executor': ('executor', 'Executor'),
+        'goal_worker': ('goal_worker', 'GoalWorker')
+    }
+    _REQUIRED_COMPONENT_METHODS = {
+        'mission_manager': ['get_mission', 'save_mission'],
+        'prompt_manager': ['get_filled_template', 'load_prompt'],
+        'suggestion_engine': ['create_suggestion', 'load_suggestions', 'archive_suggestion_as_rejected_by_actor'],
+        'goal_monitor': ['create_new_goal', 'get_active_goal', 'set_active_goal', 'get_pending_goals'],
+        'planner': ['decide_next_action'],
+        'evaluator': ['log_evaluation', 'get_recent_evaluations'],
+        'executor': ['init_executor', 'execute_action'],
+        'goal_worker': ['start', 'stop', 'is_running']
+    }
+
+    def __init__(self, config_file: str = "config.json", logger_func: Optional[Callable[[str, str], None]] = None):
+        """Initialize the AI Core system"""
+        # Set up logging
+        self.logger = logger_func if logger_func else log_background_message
+        
+        # Initialize instance variables
+        self.config = self._load_config(config_file)
+        self.current_llm_model = self.config.get("llm_model_name", MODEL_NAME)
+        self.version = get_current_version()
+        
+        # Create LLM query method
+        self.query_llm = self.query_llm_wrapper
+        
+        # State tracking
+        self.conversation_history: Dict[str, List[Dict[str, str]]] = {}
+        self.system_status: Dict[str, Any] = {
+            "tool_success_rate": 1.0,
+            "errors_last_cycle": 0,
+            "component_health": {},
+            "start_time": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Component instances (will be initialized in order)
+        self.mission_manager = None
+        self.prompt_manager = None 
+        self.suggestion_engine = None
+        self.goal_monitor = None
+        self.planner = None
+        self.evaluator = None
+        self.executor = None
+        self.goal_worker = None
+
+        try:
+            # Initialize core components in proper order
+            for component_name, (module_name, class_name) in self._REQUIRED_COMPONENTS.items():
+                try:
+                    # Import component module
+                    module = __import__(module_name, fromlist=[class_name])
+                    component_class = getattr(module, class_name)
+                    
+                    # Handle component initialization based on type
+                    if component_name == 'mission_manager':
+                        instance = component_class(
+                            config={"mission_file": self.config.get("mission_file", os.path.join("meta", "mission.json"))},
+                            logger_func=self.logger
+                        )
+                    
+                    elif component_name == 'prompt_manager':
+                        instance = component_class(
+                            config={"prompts_base_path": self.config.get("prompt_files_dir", "prompts")},
+                            logger_func=self.logger,
+                            query_llm_func=self.query_llm,
+                            mission_manager_instance=self.mission_manager
+                        )
+                    
+                    elif component_name == 'suggestion_engine':
+                        instance = component_class(
+                            config={"suggestions_file": self.config.get("suggestions_file", os.path.join("meta", "suggestions.json"))},
+                            logger_func=self.logger,
+                            query_llm_func=self.query_llm
+                        )
+                    
+                    elif component_name == 'goal_monitor':
+                        instance = component_class(
+                            goals_file=self.config.get("goals_file", os.path.join("meta", "goals.json")),
+                            active_goal_file=self.config.get("active_goal_file", os.path.join("meta", "active_goal.json")),
+                            suggestion_engine_instance=self.suggestion_engine,
+                            logger=self.logger
+                        )
+                    
+                    elif component_name == 'planner':
+                        instance = component_class(
+                            query_llm_func=self.query_llm,
+                            prompt_manager=self.prompt_manager,
+                            goal_monitor=self.goal_monitor,
+                            mission_manager=self.mission_manager,
+                            suggestion_engine=self.suggestion_engine,
+                            config=self.config.get("planner_config", {}),
+                            logger=self.logger,
+                            tool_registry_or_path=self.config.get("tool_registry_file", os.path.join("meta", "tool_registry.json"))
+                        )
+                    
+                    elif component_name == 'evaluator':
+                        instance = component_class(
+                            config=self.config.get("evaluator_config", {}),
+                            logger_func=self.logger,
+                            query_llm_func=self.query_llm,
+                            mission_manager_instance=self.mission_manager
+                        )
+                    
+                    elif component_name == 'executor':
+                        instance = component_class(
+                            config=self.config.get("executor_config", {}),
+                            logger_func=self.logger,
+                            query_llm_func=self.query_llm,
+                            mission_manager_instance=self.mission_manager
+                        )
+                    
+                    elif component_name == 'goal_worker':
+                        instance = component_class(
+                            config=self.config.get("goal_worker_config", {}),
+                            logger_func=self.logger,
+                            executor_instance=self.executor,
+                            evaluator_instance=self.evaluator,
+                            suggestion_engine_instance=self.suggestion_engine
+                        )
+
+                    setattr(self, component_name, instance)
+                    self.logger("DEBUG", f"(AICore Init) {class_name} initialized successfully")
+                    
+                except ImportError as e:
+                    self.logger("CRITICAL", f"Failed to import {module_name}: {e}")
+                    raise
+                except Exception as e:
+                    self.logger("CRITICAL", f"Failed to initialize {component_name}: {e}")
+                    raise
+
+            # Verify all components
+            self._verify_core_components()
+            self.logger("INFO", f"AI Core initialized successfully. Version: {self.version}, LLM: {self.current_llm_model}")
+
+        except Exception as e:
+            self.logger("CRITICAL", f"Critical error during AI Core initialization: {e}\n{traceback.format_exc()}")
+            raise
+
+    def query_llm_wrapper(self, 
+                         prompt_text: str,
+                         system_prompt_override: Optional[str] = None,
+                         raw_output: bool = False,
+                         timeout: int = 300,
+                         model_override: Optional[str] = None,
+                         ollama_url_override: Optional[str] = None,
+                         options_override: Optional[Dict[str, Any]] = None) -> str:
+        """Instance method wrapper around query_llm_internal"""
+        return query_llm_internal(
+            prompt_text=prompt_text,
+            system_prompt_override=system_prompt_override,
+            raw_output=raw_output,
+            timeout=timeout,
+            model_override=model_override or self.current_llm_model,
+            ollama_url_override=ollama_url_override or self.config.get("ollama_api_url", OLLAMA_URL),
+            options_override=options_override
+        )
+
+    def _load_config(self, config_file: str) -> Dict[str, Any]:
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                self.logger("ERROR", f"Failed to load config {config_file}: {e}. Using defaults.")
+
+        self.logger("INFO", f"Config file {config_file} not found. Using default settings.")
+        return {
+            "llm_model_name": MODEL_NAME,
+            "ollama_api_url": OLLAMA_URL,
+            "prompt_files_dir": "prompts",
+            "meta_dir": "meta",
+            "mission_file": os.path.join("meta", "mission.json"),
+            "suggestions_file": os.path.join("meta", "suggestions.json"),
+            "goals_file": os.path.join("meta", "goals.json"),
+            "active_goal_file": os.path.join("meta", "active_goal.json"),
+            "evaluation_log_file": os.path.join("meta", "evaluation_log.json"),
+            "tool_registry_file": os.path.join("meta", "tool_registry.json"),
+            "max_conversation_history_per_thread": 20,
+            "planner_config": {
+                "planner_context_conversation_history_length": 5,
+                "planner_context_max_pending_suggestions": 3,
+                "planner_context_recent_evaluations_count": 2,
+                "planner_context_max_tools": 5,
+                "planner_max_tokens": 800,
+                "planner_temperature": 0.5,
+                "planner_llm_timeout": 300
+            },
+            "goal_worker_config": {},
+            "suggestion_engine_enabled": True,
+            "reflection_interval_interactions": 10,
+            "internal_llm_max_tokens": 300,
+            "internal_llm_temperature": 0.6,
+            "streaming_chunk_size": 30,
+            "streaming_delay_ms": 30
+        }
+
+    def _verify_core_components(self):
+        """Verify that all core components are properly initialized and have required methods.
+        Returns True if all components are healthy, raises RuntimeError otherwise."""
+        try:
+            # Check component instances exist
+            required_components = {
+                "PromptManager": self.prompt_manager,
+                "MissionManager": self.mission_manager,
+                "SuggestionEngine": self.suggestion_engine,
+                "GoalMonitor": self.goal_monitor,
+                "Planner": self.planner,
+                "Evaluator": self.evaluator,
+                "Executor": self.executor,
+                "GoalWorker": self.goal_worker
+            }
+            
+            missing_components = [name for name, instance in required_components.items() if instance is None]
+            
+            if missing_components:
+                error_msg = f"Critical AI Core components not initialized: {', '.join(missing_components)}"
+                self.logger("CRITICAL", error_msg)
+                raise RuntimeError(error_msg)
+
+            # Verify required methods exist on each component
+            _FB_SUFFIX = "_FB"  # Check for any fallback suffix
+            for component_name, methods in self._REQUIRED_COMPONENT_METHODS.items():
+                component = getattr(self, component_name)
+                
+                # Check if using fallback implementation
+                class_name = component.__class__.__name__
+                if _FB_SUFFIX in class_name:
+                    error_msg = f"Component {component_name} is using fallback implementation ({class_name})"
+                    self.logger("CRITICAL", error_msg)
+                    raise RuntimeError(error_msg)
+                
+                # Check required methods exist
+                missing_methods = [method for method in methods if not hasattr(component, method)]
+                if missing_methods:
+                    error_msg = f"Component {component_name} missing required methods: {', '.join(missing_methods)}"
+                    self.logger("CRITICAL", error_msg)
+                    raise RuntimeError(error_msg)
+
+            # Update system status with component health
+            self.system_status["component_health"] = {
+                name: {"initialized": True, "healthy": True}
+                for name in required_components.keys()
+            }
+
+            self.logger("INFO", "All core components verified successfully")
+            return True
+
+        except Exception as e:
+            self.logger("CRITICAL", f"Component verification failed: {str(e)}")
+            self.system_status["last_error"] = str(e)
+            self.system_status["component_health"] = {}  # Clear component health on failure
+            raise
+
+# End of file

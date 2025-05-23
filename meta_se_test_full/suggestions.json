@@ -1,0 +1,73 @@
+[
+  {
+    "id": "sugg_762bdeaf",
+    "timestamp": "2025-05-18T20:15:24.496865+00:00",
+    "suggestion": "Suggest detailed review of recent problematic goal outcomes for thread ..prob12",
+    "status": "pending",
+    "source_model": "test_model_se_full",
+    "related_thread_id": "",
+    "details": {
+      "generated_by_llm": true,
+      "generation_context_preview": "### Suggestion Generation Context ###\n**Current Mission Focus Areas:** Test Main: Focus Area 1, Improving test coverage\nRecent Problematic Goal Outcomes:\n- Low: 'A problematic task...' (Score:-10, Fai..."
+    },
+    "priority": 5,
+    "approved_by": null,
+    "rejected_by": null,
+    "rejection_reason": null,
+    "modification_history": [],
+    "origin": "generate_ai_suggestion"
+  },
+  {
+    "id": "sugg_664141bb",
+    "timestamp": "2025-05-18T20:15:24.485505+00:00",
+    "suggestion": "Consider refactoring the main user interface for better clarity.",
+    "status": "pending",
+    "source_model": "test_model_se_full",
+    "related_thread_id": "",
+    "details": {
+      "generated_by_llm": true,
+      "generation_context_preview": "### Suggestion Generation Context ###\n**Current Mission Focus Areas:** Test Main: Focus Area 1, Improving test coverage\nNo specific recent performance insights from evaluations.\nNo specific high-prior..."
+    },
+    "priority": 5,
+    "approved_by": null,
+    "rejected_by": null,
+    "rejection_reason": null,
+    "modification_history": [],
+    "origin": "generate_ai_suggestion"
+  },
+  {
+    "id": "smain001",
+    "suggestion": "Updated first suggestion!",
+    "origin": "main_test",
+    "timestamp": "2025-05-18T20:15:24.171572+00:00",
+    "status": "modified_by_ai",
+    "priority": 1,
+    "details": {},
+    "approved_by": null,
+    "rejected_by": null,
+    "rejection_reason": null,
+    "modification_history": [
+      {
+        "timestamp": "2025-05-18T20:15:24.490835+00:00",
+        "actor": "AI",
+        "changes": {
+          "priority": {
+            "old": 5,
+            "new": 1
+          },
+          "suggestion": {
+            "old": "First test suggestion for main.",
+            "new": "Updated first suggestion!"
+          },
+          "status": {
+            "old": "pending",
+            "new": "modified_by_ai"
+          }
+        },
+        "reason": "AI Test Update"
+      }
+    ],
+    "source_model": "test_model_se_full",
+    "related_thread_id": ""
+  }
+]
