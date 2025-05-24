@@ -29,5 +29,22 @@ def should_log(level: str, config_path="config.json") -> bool:
     except ValueError:
         return True  # If unknown level, log it
 
+def log(level: str, message: str, config_path="config.json"):
+    """
+    Logs a message to the console if the given log level is appropriate.
+
+    The log level is determined by the 'logger_level' or 'logging_level'
+    setting in the config file (defaults to "INFO").
+
+    Args:
+        level (str): The severity level of the message (e.g., "DEBUG", "INFO", "WARNING", "ERROR").
+        message (str): The message to log.
+        config_path (str, optional): Path to the configuration file. Defaults to "config.json".
+    """
+    if should_log(level, config_path):
+        print(f"[{level.upper()}] {message}")
+
 # Example usage:
-# if should_log("DEBUG"): print("debug message")
+# from logger_utils import log
+# log("INFO", "This is an informational message.")
+# log("DEBUG", "This is a debug message.")

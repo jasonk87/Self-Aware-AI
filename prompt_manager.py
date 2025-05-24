@@ -6,6 +6,7 @@ import time
 import traceback # For detailed error logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Callable, Union # Added Callable
+from logger_utils import should_log # Added import
 
 # Module-level singleton instance
 _prompt_manager_instance = None
@@ -19,7 +20,7 @@ def load_prompt() -> str:
             with open(system_prompt_file, "r", encoding="utf-8") as f:
                 return f.read().strip()
         except Exception as e:
-            print(f"[ERROR] Failed to read system prompt: {e}")
+            if should_log("ERROR"): print(f"[ERROR] Failed to read system prompt: {e}")
     return "[Error: Unable to load system prompt]"
 
 def update_prompt(new_prompt: str) -> bool:
@@ -30,7 +31,7 @@ def update_prompt(new_prompt: str) -> bool:
             f.write(new_prompt)
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to update prompt: {e}")
+        if should_log("ERROR"): print(f"[ERROR] Failed to update prompt: {e}")
         return False
 
 def auto_update_prompt() -> bool:
@@ -41,14 +42,14 @@ def auto_update_prompt() -> bool:
     try:
         return _prompt_manager_instance.auto_update_prompt()
     except Exception as e:
-        print(f"[ERROR] Failed to auto-update prompt: {e}")
+        if should_log("ERROR"): print(f"[ERROR] Failed to auto-update prompt: {e}")
         return False
 
 # --- Fallback definitions for when ai_core or mission_manager are not available during direct module testing ---
 # These fallbacks are primarily for the __main__ block or if the module is run standalone.
 # When instantiated by AICore, proper instances/functions should be passed.
 
-_ai_core_fallback_logger = lambda level, message: print(f"[{level.upper()}] (prompt_manager_standalone_log) {message}")
+_ai_core_fallback_logger = lambda level, message: (print(f"[{level.upper()}] (prompt_manager_standalone_log) {message}") if should_log(level.upper()) else None)
 _query_llm_internal_fallback = lambda prompt_text, system_prompt_override=None, raw_output=False, timeout=300: \
     f"[Error: Fallback query_llm_internal called. ai_core.query_llm_internal not available to PromptManager instance. Prompt: {prompt_text[:100]}...]"
 
@@ -554,7 +555,7 @@ class PromptManager:
 
 
 if __name__ == "__main__":
-    print("--- Testing PromptManager Class (Standalone) ---")
+    if should_log("INFO"): print("--- Testing PromptManager Class (Standalone) ---")
     
     # Mock dependencies for standalone testing
     mock_config_pm_test = {
@@ -586,7 +587,8 @@ if __name__ == "__main__":
         f.write("User Input: {{user_input}}\nAvailable Tools: {{tool_capabilities_summary}}\nDecide next action.")
 
 
-    def mock_logger_pm(level, message): print(f"[{level.upper()}] (MockLoggerForPMTest) {message}")
+    def mock_logger_pm(level, message):
+        if should_log(level.upper()): print(f"[{level.upper()}] (MockLoggerForPMTest) {message}")
     
     def mock_query_llm_pm(prompt_text, system_prompt_override=None, raw_output=False, timeout=300):
         mock_logger_pm("INFO", f"Mock LLM called for PM test. Prompt starts: {prompt_text[:100]}...")
@@ -605,21 +607,21 @@ if __name__ == "__main__":
         mission_manager_instance=MockMissionManagerForPMTest()
     )
 
-    print("\n1. Testing get_full_system_prompt():")
+    if should_log("INFO"): print("\n1. Testing get_full_system_prompt():")
     full_prompt = pm_instance.get_full_system_prompt()
-    print(f"   Full system prompt (first 150 chars): {full_prompt[:150]}...")
+    if should_log("DEBUG"): print(f"   Full system prompt (first 150 chars): {full_prompt[:150]}...")
     if "MOCK MISSION" not in full_prompt or "default operational prompt" not in full_prompt:
-        print("   ERROR: Full prompt doesn't seem to combine mission and operational parts correctly.")
+        if should_log("ERROR"): print("   ERROR: Full prompt doesn't seem to combine mission and operational parts correctly.")
 
-    print("\n2. Testing update_operational_prompt_text():")
+    if should_log("INFO"): print("\n2. Testing update_operational_prompt_text():")
     pm_instance.update_operational_prompt_text("New operational text for testing update.")
     updated_op_text = pm_instance.get_operational_prompt_text()
     if "New operational text" not in updated_op_text:
-        print(f"   ERROR: Operational text not updated. Got: {updated_op_text}")
+        if should_log("ERROR"): print(f"   ERROR: Operational text not updated. Got: {updated_op_text}")
     else:
-        print("   Operational text updated successfully.")
+        if should_log("INFO"): print("   Operational text updated successfully.")
 
-    print("\n3. Testing auto_update_prompt() (reflection):")
+    if should_log("INFO"): print("\n3. Testing auto_update_prompt() (reflection):")
     # Create dummy context files for reflection
     for f_name_key in ["goal_file", "suggestion_file", "changelog_file", "tool_registry_file", "last_reflection_file", "conversation_review_log_file"]:
         f_path = os.path.join(mock_config_pm_test["meta_dir"], mock_config_pm_test[f_name_key])
@@ -629,21 +631,21 @@ if __name__ == "__main__":
     pm_instance.auto_update_prompt()
     reflected_op_text = pm_instance.get_operational_prompt_text()
     if "new operational instruction from mock LLM" not in reflected_op_text:
-        print(f"   ERROR: Reflection did not update prompt as expected. Got: {reflected_op_text}")
+        if should_log("ERROR"): print(f"   ERROR: Reflection did not update prompt as expected. Got: {reflected_op_text}")
     else:
-        print(f"   Operational prompt after reflection: {reflected_op_text[:100]}...")
+        if should_log("DEBUG"): print(f"   Operational prompt after reflection: {reflected_op_text[:100]}...")
     
-    print("\n4. Testing get_template_content() and render_prompt_with_dynamic_content():")
+    if should_log("INFO"): print("\n4. Testing get_template_content() and render_prompt_with_dynamic_content():")
     template_content = pm_instance.get_template_content("planner_decide_action", sub_component="planner")
     if template_content:
-        print("   SUCCESS: Loaded template 'planner_decide_action'.")
+        if should_log("INFO"): print("   SUCCESS: Loaded template 'planner_decide_action'.")
         dynamic_data = {"user_input": "Test user query", "tool_capabilities_summary": "Tool A, Tool B"}
         rendered = pm_instance.render_prompt_with_dynamic_content("planner_decide_action", dynamic_data, sub_component="planner")
-        print(f"   Rendered prompt: {rendered}")
+        if should_log("DEBUG"): print(f"   Rendered prompt: {rendered}")
         if "Test user query" not in rendered or "Tool A, Tool B" not in rendered:
-            print("   ERROR: Rendering with dynamic content failed.")
+            if should_log("ERROR"): print("   ERROR: Rendering with dynamic content failed.")
     else:
-        print("   ERROR: Failed to load template 'planner_decide_action'.")
+        if should_log("ERROR"): print("   ERROR: Failed to load template 'planner_decide_action'.")
 
-    print("\n--- PromptManager Class Test Complete ---")
-    print(f"Please review meta_pm_test/ and prompts_pm_test/ directories for test artifacts.")
+    if should_log("INFO"): print("\n--- PromptManager Class Test Complete ---")
+    if should_log("INFO"): print(f"Please review meta_pm_test/ and prompts_pm_test/ directories for test artifacts.")

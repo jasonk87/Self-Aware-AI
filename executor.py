@@ -16,29 +16,30 @@ from typing import List, Dict, Optional, Any, Callable, Tuple
 # Original top-level imports for dependencies.
 # Global fallbacks are provided for context if this module were somehow run in isolation
 # or if instances aren't correctly passed to the Executor class.
+from logger_utils import should_log # Added import
 try:
     # These are imported for potential fallback use if instances are not provided to the class.
     # The class itself will prefer using injected instances (self.tool_builder, self.tool_runner, etc.)
     from tool_builder_module import build_tool as _executor_global_build_tool_func
 except ImportError as e_tb_exec:
-    print(f"WARNING (executor_module_load): tool_builder_module.py not found. Executor will rely on ToolBuilder instance. Error: {e_tb_exec}")
+    if should_log("WARNING"): print(f"WARNING (executor_module_load): tool_builder_module.py not found. Executor will rely on ToolBuilder instance. Error: {e_tb_exec}")
     _executor_global_build_tool_func = None
 
 try:
     from tool_runner import run_tool_safely as _executor_global_run_tool_safely_func
 except ImportError as e_tr_exec:
-    print(f"WARNING (executor_module_load): tool_runner.py not found. Executor will rely on ToolRunner instance. Error: {e_tr_exec}")
+    if should_log("WARNING"): print(f"WARNING (executor_module_load): tool_runner.py not found. Executor will rely on ToolRunner instance. Error: {e_tr_exec}")
     _executor_global_run_tool_safely_func = None
 
 try:
     from notifier_module import log_update as _executor_global_log_update_func
 except ImportError as e_nm_exec:
-    print(f"WARNING (executor_module_load): notifier_module.py not found. Executor will rely on Notifier instance. Error: {e_nm_exec}")
+    if should_log("WARNING"): print(f"WARNING (executor_module_load): notifier_module.py not found. Executor will rely on Notifier instance. Error: {e_nm_exec}")
     _executor_global_log_update_func = None
 
 # Centralized logger and query_llm fallbacks for module-level use IF ai_core isn't available
 # The Executor class instance will use what's passed to its __init__ or its own instance fallbacks.
-_EXECUTOR_MODULE_LOGGER_FALLBACK = lambda level, msg: print(f"[{level.upper()}] (ExecutorModuleGlobalLogFallback) {msg}")
+_EXECUTOR_MODULE_LOGGER_FALLBACK = lambda level, msg: (print(f"[{level.upper()}] (ExecutorModuleGlobalLogFallback) {msg}") if should_log(level.upper()) else None)
 _EXECUTOR_MODULE_QUERY_LLM_FALLBACK = lambda prompt_text, system_prompt_override=None, raw_output=False, timeout=180: \
     f"[Error: Global Fallback LLM from Executor module. Prompt: {prompt_text[:100]}...]"
 
@@ -1393,7 +1394,7 @@ class Executor:
 # --- End of Executor Class ---
 
 if __name__ == "__main__":
-    print("--- Testing Executor Class (Standalone - Full User Code) ---")
+    if should_log("INFO"): print("--- Testing Executor Class (Standalone - Full User Code) ---")
     
     # Mock dependencies for testing
     mock_config_exec_main = {
@@ -1410,7 +1411,8 @@ if __name__ == "__main__":
         "tool_classification_llm_timeout": 10
     }
 
-    def main_test_logger_exec_main(level, message): print(f"[{level.upper()}] (Exec_MainTest) {message}")
+    def main_test_logger_exec_main(level, message):
+        if should_log(level.upper()): print(f"[{level.upper()}] (Exec_MainTest) {message}")
     
     def main_test_query_llm_exec_main(prompt_text, system_prompt_override=None, raw_output=False, timeout=180):
         main_test_logger_exec_main("INFO", f"ExecMainTest Mock LLM. Sys: '{str(system_prompt_override)[:50]}...' Prompt: {prompt_text[:80]}...")
@@ -1478,7 +1480,7 @@ if __name__ == "__main__":
     exec_instance_main_test.init_executor()
 
     # Test logic from your original __main__
-    print("\n1. Main Test: Adding a test parent goal for decomposition:")
+    if should_log("INFO"): print("\n1. Main Test: Adding a test parent goal for decomposition:")
     initial_goals_main_test = exec_instance_main_test.load_goals()
     success_add_parent_main, parent_id_main_test = exec_instance_main_test.add_goal(initial_goals_main_test, "Test Parent Goal for Full Executor Main Test", priority=PRIORITY_HIGH)
     if success_add_parent_main:
@@ -1486,7 +1488,7 @@ if __name__ == "__main__":
         exec_instance_main_test.save_goals(initial_goals_main_test)
     else: main_test_logger_exec_main("ERROR", "Failed to add parent goal for main test.")
     
-    print("\n2. Main Test: Running evaluate_goals() cycle (should decompose parent):")
+    if should_log("INFO"): print("\n2. Main Test: Running evaluate_goals() cycle (should decompose parent):")
     exec_instance_main_test.evaluate_goals()
     
     goals_after_decomp_main = exec_instance_main_test.load_goals()
@@ -1495,15 +1497,15 @@ if __name__ == "__main__":
         main_test_logger_exec_main("INFO", f"Parent goal GID ..{parent_id_main_test[-6:] if parent_id_main_test else 'N/A'} decomposed. Subtasks: {parent_after_decomp_main.get('subtasks')}")
     else: main_test_logger_exec_main("WARNING", f"Parent GID ..{parent_id_main_test[-6:] if parent_id_main_test else 'N/A'} not decomposed. Status: {parent_after_decomp_main.get('status') if parent_after_decomp_main else 'Not Found'}")
 
-    print("\n3. Main Test: Running evaluate_goals() cycle again (should process a subtask):")
+    if should_log("INFO"): print("\n3. Main Test: Running evaluate_goals() cycle again (should process a subtask):")
     exec_instance_main_test.evaluate_goals()
     
-    print("\n4. Main Test: Running evaluate_goals() cycle again (should process next subtask or complete parent):")
+    if should_log("INFO"): print("\n4. Main Test: Running evaluate_goals() cycle again (should process next subtask or complete parent):")
     exec_instance_main_test.evaluate_goals()
 
     final_goals_main_test_run = exec_instance_main_test.load_goals()
-    print("\n--- Final Goals List (Executor Full Main Test) ---")
+    if should_log("INFO"): print("\n--- Final Goals List (Executor Full Main Test) ---")
     for g_final_main_run in final_goals_main_test_run:
-        print(f"  GID: ..{g_final_main_run.get('goal_id','N/A')[-6:]}, Status: {g_final_main_run.get('status','N/A')}, Goal: '{g_final_main_run.get('goal','')[:60]}...'")
+        if should_log("DEBUG"): print(f"  GID: ..{g_final_main_run.get('goal_id','N/A')[-6:]}, Status: {g_final_main_run.get('status','N/A')}, Goal: '{g_final_main_run.get('goal','')[:60]}...'")
 
-    print("\n--- Executor Class Test (from user's full code) Complete ---")
+    if should_log("INFO"): print("\n--- Executor Class Test (from user's full code) Complete ---")

@@ -6,9 +6,10 @@ import time
 import traceback 
 from typing import Dict, Optional, Any, Callable, List, Union # Added List, Callable
 from datetime import datetime, timezone
+from logger_utils import should_log # Added import
 
 # Fallback logger for standalone testing or if no logger is provided to the class instance
-_CLASS_GOALWORKER_FALLBACK_LOGGER = lambda level, message: print(f"[{level.upper()}] (GoalWorkerClassFallbackLog) {message}")
+_CLASS_GOALWORKER_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (GoalWorkerClassFallbackLog) {message}") if should_log(level.upper()) else None)
 
 class GoalWorker:
     def __init__(self,
@@ -220,7 +221,7 @@ class GoalWorker:
 # --- End of GoalWorker Class ---
 
 if __name__ == "__main__":
-    print("--- Testing GoalWorker Class (Standalone) ---")
+    if should_log("INFO"): print("--- Testing GoalWorker Class (Standalone) ---")
 
     # Mock dependencies for testing
     mock_config_gw = {
@@ -235,7 +236,8 @@ if __name__ == "__main__":
         "active_goal_file": os.path.join("meta_gw_test", "active_goal.json"),
         "suggestions_file": os.path.join("meta_gw_test", "suggestions.json") # For SuggestionEngine mock
     }
-    def main_test_logger_gw(level, message): print(f"[{level.upper()}] (GW_MainTest) {message}")
+    def main_test_logger_gw(level, message):
+        if should_log(level.upper()): print(f"[{level.upper()}] (GW_MainTest) {message}")
 
     class MockExecutorGW:
         def __init__(self, logger): self.logger = logger; self.goals = []
@@ -286,29 +288,29 @@ if __name__ == "__main__":
     ]
     gw_instance._save_json_worker(gw_instance.goals_file_path, initial_test_goals) # Use instance method to save
 
-    print("\nStarting GoalWorker thread for a short duration (e.g., 10-15 seconds)...")
+    if should_log("INFO"): print("\nStarting GoalWorker thread for a short duration (e.g., 10-15 seconds)...")
     worker_thread_main = gw_instance.start_worker()
 
     if worker_thread_main:
         # Let it run for a bit to see a few cycles
         time.sleep(15) 
         
-        print("\nAttempting to pause worker...")
+        if should_log("INFO"): print("\nAttempting to pause worker...")
         gw_instance.set_pause(True)
         time.sleep(7) # See if it respects pause
 
-        print("\nAttempting to resume worker...")
+        if should_log("INFO"): print("\nAttempting to resume worker...")
         gw_instance.set_pause(False)
         time.sleep(7) # See if it resumes
 
-        print("\nStopping GoalWorker thread...")
+        if should_log("INFO"): print("\nStopping GoalWorker thread...")
         gw_instance.stop()
         worker_thread_main.join(timeout=10) # Wait for thread to finish
         if worker_thread_main.is_alive():
-            print("ERROR: GoalWorker thread did not terminate cleanly.")
+            if should_log("ERROR"): print("ERROR: GoalWorker thread did not terminate cleanly.")
         else:
-            print("GoalWorker thread terminated.")
+            if should_log("INFO"): print("GoalWorker thread terminated.")
     else:
-        print("ERROR: GoalWorker thread failed to start.")
+        if should_log("ERROR"): print("ERROR: GoalWorker thread failed to start.")
 
-    print("\n--- GoalWorker Class Test Complete ---")
+    if should_log("INFO"): print("\n--- GoalWorker Class Test Complete ---")

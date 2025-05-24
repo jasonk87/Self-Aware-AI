@@ -9,6 +9,7 @@ import sys
 import uuid
 from typing import List, Dict, Optional, Any, Literal, Union, Callable
 import time
+from logger_utils import should_log # Added import
 
 # Module-level singleton instance
 _suggestion_engine_instance = None
@@ -21,7 +22,7 @@ def load_suggestions() -> List[Dict[str, Any]]:
             with open(suggestions_file, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
-        print(f"[ERROR] Failed to load suggestions: {e}")
+        if should_log("ERROR"): print(f"[ERROR] Failed to load suggestions: {e}")
     return []
 
 def save_suggestions(suggestions: List[Dict[str, Any]]) -> bool:
@@ -32,7 +33,7 @@ def save_suggestions(suggestions: List[Dict[str, Any]]) -> bool:
             json.dump(suggestions, f, indent=2)
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to save suggestions: {e}")
+        if should_log("ERROR"): print(f"[ERROR] Failed to save suggestions: {e}")
         return False
 
 def init_suggestions_file():
@@ -44,7 +45,7 @@ def init_suggestions_file():
             save_suggestions([])
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to initialize suggestions file: {e}")
+        if should_log("ERROR"): print(f"[ERROR] Failed to initialize suggestions file: {e}")
         return False
 
 # --- Type Hinting for Suggestion Management (defined at top level) ---
@@ -57,7 +58,7 @@ ActorType = Optional[Literal["user", "AI"]]
 
 # --- Fallback definitions for when dependencies are not passed to the class instance ---
 # These are used if None is passed to __init__ for logger, query_llm, etc.
-_CLASS_FALLBACK_LOGGER = lambda level, message: print(f"[{level.upper()}] (SuggestionEngineClassFallbackLog) {message}")
+_CLASS_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (SuggestionEngineClassFallbackLog) {message}") if should_log(level.upper()) else None)
 _CLASS_FALLBACK_QUERY_LLM = lambda prompt_text, system_prompt_override=None, raw_output=False, timeout=180: \
     f"[Error: Fallback LLM query from SuggestionEngine instance. Prompt: {prompt_text[:100]}...]"
 
@@ -712,7 +713,7 @@ class SuggestionEngine:
             return f"[Error generating pending suggestions summary: {e}]"
 
 if __name__ == "__main__":
-    print("--- Testing SuggestionEngine Class (Standalone from User's Full Code) ---")
+    if should_log("INFO"): print("--- Testing SuggestionEngine Class (Standalone from User's Full Code) ---")
 
     # Setup mock config and logger for standalone test
     mock_config_se_main = {
@@ -731,7 +732,7 @@ if __name__ == "__main__":
     }
 
     def main_test_logger_se(level, message):
-        print(f"[{level.upper()}] (SE_MainTest) {message}")
+        if should_log(level.upper()): print(f"[{level.upper()}] (SE_MainTest) {message}")
 
     def main_test_query_llm_se(prompt_text, system_prompt_override=None, raw_output=False, timeout=180):
         main_test_logger_se("INFO", f"MainTest Mock LLM called. Prompt starts: {prompt_text[:150]}...")
@@ -775,29 +776,30 @@ if __name__ == "__main__":
     main_test_logger_se("INFO", "Standalone SE Test: Initializing with empty suggestions file.")
     se_instance_main.init_suggestions_file() # Should create if not exists
 
-    print("\n1. Testing add_new_suggestion_object directly:")
+    if should_log("INFO"): print("\n1. Testing add_new_suggestion_object directly:")
     s1 = {"id": "smain001", "suggestion": "First test suggestion for main.", "origin": "main_test"}
     se_instance_main.add_new_suggestion_object(s1)
     loaded_after_add = se_instance_main.load_suggestions()
-    print(f"   Suggestions after add: {len(loaded_after_add)}")
-    if not any(s['id'] == 'smain001' for s in loaded_after_add): print("   ERROR: smain001 not found after add.")
+    if should_log("DEBUG"): print(f"   Suggestions after add: {len(loaded_after_add)}")
+    if not any(s['id'] == 'smain001' for s in loaded_after_add):
+        if should_log("ERROR"): print("   ERROR: smain001 not found after add.")
 
-    print("\n2. Testing generate_ai_suggestion (first pass):")
+    if should_log("INFO"): print("\n2. Testing generate_ai_suggestion (first pass):")
     se_instance_main.generate_ai_suggestion()
     loaded_after_gen1 = se_instance_main.load_suggestions()
-    print(f"   Suggestions after first generate_ai_suggestion: {len(loaded_after_gen1)}")
+    if should_log("DEBUG"): print(f"   Suggestions after first generate_ai_suggestion: {len(loaded_after_gen1)}")
     for s_item_gen1 in loaded_after_gen1[-2:]: # Show last few
-         print(f"     - \"{s_item_gen1.get('suggestion','')[:60]}...\" (Origin: {s_item_gen1.get('origin')})")
+         if should_log("DEBUG"): print(f"     - \"{s_item_gen1.get('suggestion','')[:60]}...\" (Origin: {s_item_gen1.get('origin')})")
 
-    print("\n3. Testing update_suggestion_status_details:")
+    if should_log("INFO"): print("\n3. Testing update_suggestion_status_details:")
     se_instance_main.update_suggestion_status_details("smain001", actor="AI", updates_dict={"priority": 1, "suggestion": "Updated first suggestion!"}, reason_for_change="AI Test Update")
     updated_s1 = se_instance_main.get_suggestion_by_id_or_timestamp("smain001")
     if updated_s1 and updated_s1.get("priority") == 1 and "Updated first suggestion!" in updated_s1.get("suggestion",""):
-        print(f"   SUCCESS: smain001 updated. Status: {updated_s1.get('status')}")
+        if should_log("INFO"): print(f"   SUCCESS: smain001 updated. Status: {updated_s1.get('status')}")
     else:
-        print(f"   ERROR: smain001 not updated correctly. Found: {updated_s1}")
+        if should_log("ERROR"): print(f"   ERROR: smain001 not updated correctly. Found: {updated_s1}")
 
-    print("\n4. Testing generate_ai_suggestion again (to check de-dup and limits):")
+    if should_log("INFO"): print("\n4. Testing generate_ai_suggestion again (to check de-dup and limits):")
     # Add a "problematic goal" to influence the mock LLM
     with open(mock_config_se_main["goals_file"], "w", encoding="utf-8") as gf_main:
          json.dump([{"goal_id": "prob12", "thread_id":"th_prob12", "goal":"A problematic task", "status":"failed_max_retries", "evaluation":{"final_score":-10}}], gf_main)
@@ -805,9 +807,9 @@ if __name__ == "__main__":
     se_instance_main.generate_ai_suggestion() # Might hit similarity or pending limit
     se_instance_main.generate_ai_suggestion() # ""
     loaded_after_gen_multi = se_instance_main.load_suggestions(load_all_history=True)
-    print(f"   Suggestions after multiple generate_ai_suggestion calls: {len(loaded_after_gen_multi)}")
+    if should_log("DEBUG"): print(f"   Suggestions after multiple generate_ai_suggestion calls: {len(loaded_after_gen_multi)}")
     for s_item_gen_multi in loaded_after_gen_multi:
-         print(f"     - \"{s_item_gen_multi.get('suggestion','')[:60]}...\" (Status: {s_item_gen_multi.get('status')}, Origin: {s_item_gen_multi.get('origin')})")
+         if should_log("DEBUG"): print(f"     - \"{s_item_gen_multi.get('suggestion','')[:60]}...\" (Status: {s_item_gen_multi.get('status')}, Origin: {s_item_gen_multi.get('origin')})")
 
 
-    print("\n--- SuggestionEngine Class Test (from user's full code) Complete ---")
+    if should_log("INFO"): print("\n--- SuggestionEngine Class Test (from user's full code) Complete ---")

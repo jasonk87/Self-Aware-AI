@@ -23,10 +23,11 @@ if TYPE_CHECKING:
     from goal_worker import GoalWorker
 
 # --- Runtime Imports of truly BASE utilities (that don't import AICore or other major components) ---
+from logger_utils import log # Changed import
 try:
     from notifier_module import get_current_version
 except ImportError:
-    print("CRITICAL ERROR (ai_core): notifier_module.py not found or get_current_version missing.")
+    log("ERROR", "CRITICAL ERROR (ai_core): notifier_module.py not found or get_current_version missing.")
     def get_current_version(): return "N/A (notifier_module missing)"
 
 # --- Global Queues and Settings ---
@@ -799,8 +800,9 @@ log_message_queue = log_message_queue_aicore
 MODEL_NAME = MODEL_NAME_AICORE # Ensure this is accessible
 
 if __name__ == "__main__":
-    print("--- Testing AICore Standalone (basic init and LLM call) ---")
-    def test_logger_main(level, message): print(f"[{level} - MAIN_TEST] {message}")
+    log("INFO", "--- Testing AICore Standalone (basic init and LLM call) ---")
+    def test_logger_main(level, message):
+        log(level.upper(), f"[{level} - MAIN_TEST] {message}")
 
     if not os.path.exists("config.json"):
         with open("config.json", "w") as f_cfg_main:
@@ -829,4 +831,4 @@ if __name__ == "__main__":
     else:
         test_logger_main("CRITICAL", "Failed to initialize AICore singleton for __main__ test.")
 
-    print("--- AICore __main__ Test Complete ---")
+    log("INFO", "--- AICore __main__ Test Complete ---")

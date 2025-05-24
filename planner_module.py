@@ -5,6 +5,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from typing import Tuple, Optional, Dict, List, Any, Union, Callable, TYPE_CHECKING # Added TYPE_CHECKING
+from logger_utils import should_log # Added import
 
 # --- Conditional Imports for Type Checking ---
 if TYPE_CHECKING:
@@ -15,28 +16,30 @@ if TYPE_CHECKING:
     # Add other types used in hints if they are from external, conditionally available modules
 
 # --- Runtime Imports with Fallbacks ---
+_planner_fallback_logger = lambda level, message: (print(f"[{level.upper()}] (PlannerModuleFallbackLog) {message}") if should_log(level.upper()) else None)
+
 try:
     from prompt_manager import PromptManager
 except ImportError:
-    print("CRITICAL (Planner): prompt_manager.py not found.")
+    if should_log("CRITICAL"): print("CRITICAL (Planner): prompt_manager.py not found.")
     class PromptManager: pass # Fallback class
 
 try:
     from goal_monitor import GoalMonitor
 except ImportError:
-    print("CRITICAL (Planner): goal_monitor.py not found.")
+    if should_log("CRITICAL"): print("CRITICAL (Planner): goal_monitor.py not found.")
     class GoalMonitor: pass # Fallback class
 
 try:
     from mission_manager import MissionManager
 except ImportError:
-    print("CRITICAL (Planner): mission_manager.py not found.")
+    if should_log("CRITICAL"): print("CRITICAL (Planner): mission_manager.py not found.")
     class MissionManager: pass # Fallback class
 
 try:
     from suggestion_engine import SuggestionEngine
 except ImportError:
-    print("CRITICAL (Planner): suggestion_engine.py not found.")
+    if should_log("CRITICAL"): print("CRITICAL (Planner): suggestion_engine.py not found.")
     class SuggestionEngine: pass # Fallback class
 
 
@@ -66,13 +69,13 @@ class Planner:
             isinstance(mission_manager, (MissionManager, type(None))),
             isinstance(suggestion_engine, (SuggestionEngine, type(None)))
         ]):
-            temp_logger = logger if logger else print
+            temp_logger = logger if logger else _planner_fallback_logger
             # Be more specific about which runtime component is missing or not a class
             missing_runtime_deps = []
             if not callable(query_llm_func): missing_runtime_deps.append("query_llm_func (not callable)")
             if not isinstance(prompt_manager, (globals().get('PromptManager', object), type(None))): missing_runtime_deps.append("prompt_manager")
             # ... repeat for others, using globals().get('ClassName', object) to get the runtime class name safely
-            temp_logger(f"CRITICAL (Planner Init): One or more critical runtime dependencies missing or invalid type: {missing_runtime_deps}. Planner may not function.")
+            temp_logger("CRITICAL", f"(Planner Init): One or more critical runtime dependencies missing or invalid type: {missing_runtime_deps}. Planner may not function.")
 
 
         self.query_llm = query_llm_func
@@ -82,7 +85,7 @@ class Planner:
         self.mission_manager: Optional[MissionManager] = mission_manager
         self.suggestion_engine: Optional[SuggestionEngine] = suggestion_engine
         self.config = config
-        self.logger = logger if logger else print
+        self.logger = logger if logger else _planner_fallback_logger
 
         self.tool_registry_data: List[Dict[str, Any]] = []
         if isinstance(tool_registry_or_path, str):
@@ -457,14 +460,14 @@ if __name__ == '__main__':
     # This __main__ block is for testing planner_module.py standalone.
     # It will print the prompt sent to the (mock) LLM.
     # Ensure "meta" and "prompts" directories exist with dummy files for a basic run.
-    print("--- Testing Planner Module (Standalone - Corrected, LLM Call via Passed Function) ---")
+    if should_log("INFO"): print("--- Testing Planner Module (Standalone - Corrected, LLM Call via Passed Function) ---")
     
     class MockLLMCallableForPlanner: 
         def __call__(self, prompt_text: str, system_prompt_override: Optional[str]=None, raw_output: bool=False, timeout: int=300) -> str:
-            print("\n--- MOCK LLM FUNCTION CALLED (PROMPT RECEIVED BY PLANNER'S LLM FUNCTION) ---")
-            print(prompt_text[:1000] + "..." if len(prompt_text) > 1000 else prompt_text)
-            print(f"System Override: {str(system_prompt_override)[:100]}..., Raw: {raw_output}, Timeout: {timeout}")
-            print("--- END MOCK LLM FUNCTION INPUT ---\n")
+            if should_log("DEBUG"): print("\n--- MOCK LLM FUNCTION CALLED (PROMPT RECEIVED BY PLANNER'S LLM FUNCTION) ---")
+            if should_log("DEBUG"): print(prompt_text[:1000] + "..." if len(prompt_text) > 1000 else prompt_text)
+            if should_log("DEBUG"): print(f"System Override: {str(system_prompt_override)[:100]}..., Raw: {raw_output}, Timeout: {timeout}")
+            if should_log("DEBUG"): print("--- END MOCK LLM FUNCTION INPUT ---\n")
             # Simulate LLM deciding to manage a suggestion based on context
             # This mock should be made more dynamic if specific suggestion IDs from prompt are needed for test.
             # For now, it always tries to approve a hardcoded ID or responds generically.
@@ -479,7 +482,7 @@ if __name__ == '__main__':
             else:
                 mock_decision = {"next_action": "respond_to_user", 
                                  "action_details": {"response_text": "Mock Planner (via func): LLM call simulated. Review prompt."}}
-            print(f"Mock LLM Function Decision: {mock_decision}")
+            if should_log("DEBUG"): print(f"Mock LLM Function Decision: {mock_decision}")
             return json.dumps(mock_decision)
 
     class MockPromptManagerForPlanner:
@@ -545,8 +548,8 @@ if __name__ == '__main__':
     test_convo_pm = [{"role": "user", "content": "What about my suggestions?"}]
     test_status_pm = {"current_time": datetime.now(timezone.utc).isoformat(), "tool_success_rate": 0.95}
     
-    print("\n--- Running Planner decide_next_action with mock LLM function (for prompt review) ---")
+    if should_log("INFO"): print("\n--- Running Planner decide_next_action with mock LLM function (for prompt review) ---")
     action_res_pm, details_res_pm = planner_for_main_test.decide_next_action(test_convo_pm, test_status_pm)
-    print(f"\nPlanner __main__ Test - Decided Action: {action_res_pm}")
-    print(f"Planner __main__ Test - Action Details: {details_res_pm}")
-    print("\n--- Planner Module __main__ Test Complete ---")
+    if should_log("INFO"): print(f"\nPlanner __main__ Test - Decided Action: {action_res_pm}")
+    if should_log("DEBUG"): print(f"Planner __main__ Test - Action Details: {details_res_pm}")
+    if should_log("INFO"): print("\n--- Planner Module __main__ Test Complete ---")

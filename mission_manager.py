@@ -3,9 +3,10 @@ import os
 import json
 import traceback
 from typing import Dict, Any, Optional, Callable
+from logger_utils import should_log # Added import
 
 # Fallback logger for standalone testing or if no logger is provided to the class
-_standalone_logger = lambda level, message: print(f"[{level.upper()}] (MissionManager_standalone_log) {message}")
+_standalone_logger = lambda level, message: (print(f"[{level.upper()}] (MissionManager_standalone_log) {message}") if should_log(level.upper()) else None)
 
 class MissionManager:
     def __init__(self, 
@@ -120,7 +121,7 @@ class MissionManager:
         return self.load_mission()
 
 if __name__ == "__main__":
-    print("--- Testing MissionManager Class (Standalone) ---")
+    if should_log("INFO"): print("--- Testing MissionManager Class (Standalone) ---")
     
     # Mock config for testing
     test_config = {
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     
     # Simple print logger for testing
     def main_test_logger(level, message):
-        print(f"[{level}] (MM_Test) {message}")
+        if should_log(level.upper()): print(f"[{level}] (MM_Test) {message}")
 
     # Clean up old test file if it exists
     test_mission_file_path = test_config["mission_file"]
@@ -154,43 +155,43 @@ if __name__ == "__main__":
 
     mm_instance = MissionManager(config=test_config, logger_func=main_test_logger)
 
-    print("\n1. Initial load_mission() (should create default from config):")
+    if should_log("INFO"): print("\n1. Initial load_mission() (should create default from config):")
     initial_mission = mm_instance.load_mission()
-    print(f"   Loaded mission (first time):\n{json.dumps(initial_mission, indent=2)}")
+    if should_log("DEBUG"): print(f"   Loaded mission (first time):\n{json.dumps(initial_mission, indent=2)}")
     if initial_mission["identity_statement"] != "Test AI Identity":
-        print("   ERROR: Initial mission did not match config default.")
+        if should_log("ERROR"): print("   ERROR: Initial mission did not match config default.")
 
-    print("\n2. get_mission_statement_for_prompt():")
+    if should_log("INFO"): print("\n2. get_mission_statement_for_prompt():")
     prompt_statement = mm_instance.get_mission_statement_for_prompt()
-    print(f"   Prompt statement:\n{prompt_statement}")
+    if should_log("DEBUG"): print(f"   Prompt statement:\n{prompt_statement}")
     if "Test AI Identity" not in prompt_statement:
-        print("   ERROR: Prompt statement missing correct identity.")
+        if should_log("ERROR"): print("   ERROR: Prompt statement missing correct identity.")
 
-    print("\n3. Modifying and saving mission:")
+    if should_log("INFO"): print("\n3. Modifying and saving mission:")
     current_mission = mm_instance.load_mission()
     current_mission["current_focus_areas"] = ["New Focus Test 1", "New Focus Test 2"]
     current_mission["values"].append("NewTestValue")
     mm_instance.save_mission(current_mission)
 
     reloaded_mission = mm_instance.load_mission()
-    print(f"   Reloaded mission after save:\n{json.dumps(reloaded_mission, indent=2)}")
+    if should_log("DEBUG"): print(f"   Reloaded mission after save:\n{json.dumps(reloaded_mission, indent=2)}")
     if "New Focus Test 1" not in reloaded_mission["current_focus_areas"] or \
        "NewTestValue" not in reloaded_mission["values"]:
-        print("   ERROR: Mission modification not saved or loaded correctly.")
+        if should_log("ERROR"): print("   ERROR: Mission modification not saved or loaded correctly.")
     else:
-        print("   Mission modification successful.")
+        if should_log("INFO"): print("   Mission modification successful.")
 
-    print("\n4. Testing resilience (deleting file and reloading):")
+    if should_log("INFO"): print("\n4. Testing resilience (deleting file and reloading):")
     if os.path.exists(test_mission_file_path):
         os.remove(test_mission_file_path)
-        print(f"   Deleted test mission file: {test_mission_file_path}")
+        if should_log("INFO"): print(f"   Deleted test mission file: {test_mission_file_path}")
     
     resilient_mission = mm_instance.load_mission() # Should recreate from config's default_mission
-    print(f"   Mission loaded after deletion:\n{json.dumps(resilient_mission, indent=2)}")
+    if should_log("DEBUG"): print(f"   Mission loaded after deletion:\n{json.dumps(resilient_mission, indent=2)}")
     if resilient_mission["identity_statement"] == "Test AI Identity":
-        print("   Resilience test PASSED: Mission recreated from config default.")
+        if should_log("INFO"): print("   Resilience test PASSED: Mission recreated from config default.")
     else:
-        print("   Resilience test FAILED: Default mission not correctly restored from config.")
+        if should_log("ERROR"): print("   Resilience test FAILED: Default mission not correctly restored from config.")
 
-    print("\n--- MissionManager Class Test Complete ---")
-    print(f"Review test artifacts in '{test_config['meta_dir']}' directory.")
+    if should_log("INFO"): print("\n--- MissionManager Class Test Complete ---")
+    if should_log("INFO"): print(f"Review test artifacts in '{test_config['meta_dir']}' directory.")

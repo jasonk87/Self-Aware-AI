@@ -62,6 +62,8 @@ def review_tool_idea(tool_idea: str, tools_list: list, user_goal: str) -> dict:
         "explanation": explanation
     }
 
+from logger_utils import should_log # Added import
+
 # Example usage:
 if __name__ == "__main__":
     result = review_tool_idea(
@@ -69,5 +71,5 @@ if __name__ == "__main__":
         tools_list=["summarize_pdf", "read_txt"],
         user_goal="Help me parse documents faster"
     )
-    print("REVIEW DECISION:", result['decision'])
-    print("REVIEW EXPLANATION:\n", result['explanation'])
+    if should_log("INFO"): print("REVIEW DECISION:", result['decision'])
+    if should_log("INFO"): print("REVIEW EXPLANATION:\n", result['explanation'])

@@ -15,6 +15,7 @@ from speech_recognition import Recognizer
 from typing import Optional
 import ai_core # Make sure ai_core is imported
 import os # For os.path.join
+from logger_utils import log # Added import
 
 # --- Section 1: Initial Setup, AICore Initialization, and GoalWorker Acquisition ---
 # --- Global Variables for Core Components & Logger ---
@@ -559,7 +560,7 @@ def main_console_loop() -> None:
             err_msg_voice = f"ERROR initializing voice recognition: {e_voice_init}. Voice commands disabled."
             log_to_console_logger("ERROR", f"(console_ai) {err_msg_voice}")
             # Direct print as this is early in console setup
-            print(color_text(err_msg_voice, Fore.RED))
+            log("ERROR", color_text(err_msg_voice, Fore.RED))
             VOICE_ENABLED = False
     else: # If sr is None because import failed
         VOICE_ENABLED = False

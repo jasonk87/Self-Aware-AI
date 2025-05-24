@@ -4,9 +4,10 @@ import json
 import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Callable, List, Union # Added List, Union
+from logger_utils import should_log # Added import
 
 # Fallback logger for standalone testing or if no logger is provided to the class
-_CLASS_EVALUATOR_FALLBACK_LOGGER = lambda level, message: print(f"[{level.upper()}] (EvaluatorClassFallbackLog) {message}")
+_CLASS_EVALUATOR_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (EvaluatorClassFallbackLog) {message}") if should_log(level.upper()) else None)
 _CLASS_EVALUATOR_FALLBACK_QUERY_LLM = lambda prompt_text, system_prompt_override=None, raw_output=False, timeout=300: \
     f"[Error: Fallback LLM query from Evaluator instance. Prompt: {prompt_text[:100]}...]"
 
@@ -23,7 +24,7 @@ if 'log_background_message' not in globals(): # If ai_core.log_background_messag
         _EVALUATOR_LOGGER_FUNC = evaluator_log_bg_msg_temp
     except ImportError:
         def evaluator_log_bg_msg_temp(level: str, message: str): # type: ignore
-            print(f"[{level.upper()}] (evaluator_module_fallback_log) {message}")
+            if should_log(level.upper()): print(f"[{level.upper()}] (evaluator_module_fallback_log) {message}")
         _EVALUATOR_LOGGER_FUNC = evaluator_log_bg_msg_temp
 
 try:
@@ -318,7 +319,7 @@ class Evaluator:
 
 
 if __name__ == "__main__":
-    print("--- Testing Evaluator Class (Standalone) ---")
+    if should_log("INFO"): print("--- Testing Evaluator Class (Standalone) ---")
     
     # Mock config for testing
     test_eval_config = {
@@ -328,7 +329,8 @@ if __name__ == "__main__":
         "evaluator_llm_timeout": 10 # Short for test
     }
 
-    def main_test_logger_eval(level, message): print(f"[{level.upper()}] (Eval_Test) {message}")
+    def main_test_logger_eval(level, message):
+        if should_log(level.upper()): print(f"[{level.upper()}] (Eval_Test) {message}")
     
     def main_test_query_llm_eval(prompt_text, system_prompt_override=None, raw_output=False, timeout=180):
         main_test_logger_eval("INFO", f"MainTest Mock LLM (Evaluator) called. Prompt starts: {prompt_text[:100]}...")
@@ -371,24 +373,27 @@ if __name__ == "__main__":
         mission_manager_instance=MainTestMockMissionManagerEval()
     )
 
-    print("\nRunning perform_evaluation_cycle()...")
+    if should_log("INFO"): print("\nRunning perform_evaluation_cycle()...")
     eval_instance_main.perform_evaluation_cycle()
 
-    print(f"\n--- Contents of {eval_instance_main.evaluation_log_file_path} after cycle ---")
+    if should_log("INFO"): print(f"\n--- Contents of {eval_instance_main.evaluation_log_file_path} after cycle ---")
     eval_log_content_main = eval_instance_main._load_json_eval(eval_instance_main.evaluation_log_file_path, [])
     if isinstance(eval_log_content_main, list) and eval_log_content_main: # Check if list and not empty
-        for entry_main in eval_log_content_main: print(json.dumps(entry_main, indent=2))
-    else: print("Evaluation log is empty or not a list.")
+        for entry_main in eval_log_content_main:
+            if should_log("DEBUG"): print(json.dumps(entry_main, indent=2))
+    else:
+        if should_log("INFO"): print("Evaluation log is empty or not a list.")
         
-    print(f"\n--- Contents of {eval_instance_main.executor_goal_file_path} after cycle (showing evaluation scores) ---")
+    if should_log("INFO"): print(f"\n--- Contents of {eval_instance_main.executor_goal_file_path} after cycle (showing evaluation scores) ---")
     goals_after_eval_main = eval_instance_main._load_json_eval(eval_instance_main.executor_goal_file_path, [])
     if isinstance(goals_after_eval_main, list) and goals_after_eval_main: # Check if list and not empty
         for goal_entry_main in goals_after_eval_main:
             goal_id_short_main = goal_entry_main.get('goal_id', 'N/A')[-6:]
             if "evaluation" in goal_entry_main and isinstance(goal_entry_main["evaluation"], dict):
-                print(f"  Goal GID: ..{goal_id_short_main}, Final Score: {goal_entry_main['evaluation'].get('final_score')}")
+                if should_log("DEBUG"): print(f"  Goal GID: ..{goal_id_short_main}, Final Score: {goal_entry_main['evaluation'].get('final_score')}")
             elif goal_entry_main.get('status') not in ["pending", "active", "decomposed", "approved", "awaiting_correction"]: # Only print if it SHOULD have been evaluated
-                print(f"  Goal GID: ..{goal_id_short_main}, Status: {goal_entry_main.get('status')} (No 'evaluation' field written).")
-    else: print(f"{eval_instance_main.executor_goal_file_path} is empty or not a list after evaluation.")
+                if should_log("DEBUG"): print(f"  Goal GID: ..{goal_id_short_main}, Status: {goal_entry_main.get('status')} (No 'evaluation' field written).")
+    else:
+        if should_log("INFO"): print(f"{eval_instance_main.executor_goal_file_path} is empty or not a list after evaluation.")
 
-    print("\n--- Evaluator Class Test Complete ---")
+    if should_log("INFO"): print("\n--- Evaluator Class Test Complete ---")

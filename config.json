@@ -30,7 +30,8 @@
         "suggestion_generation_interval": 180,
         "worker_loop_interval": 7,
         "periodic_log_interval": 600
-    },    "suggestion_engine_config": {
+    },
+    "suggestion_engine_config": {
         "enabled": true,
         "max_pending_suggestions_in_system": 15,
         "max_recent_goals_context": 5,
@@ -51,14 +52,16 @@
     "internal_llm_max_tokens": 300,
     "internal_llm_temperature": 0.6,
     "streaming_chunk_size": 30,
-    "streaming_delay_ms": 30,    "executor_config": {
+    "streaming_delay_ms": 30,
+    "executor_config": {
         "max_retries": 3,
         "execution_timeout": 60,
         "auto_fix_attempts": 2,
         "sandbox_enabled": true,
         "recursive_tool_depth": 3,
         "error_correction_enabled": true
-    },    "tool_builder_config": {
+    },
+    "tool_builder_config": {
         "allow_imports": true,
         "tool_build_llm_timeout": 60,
         "auto_test_enabled": true,
@@ -73,7 +76,8 @@
     },
     "mission_manager_config": {
         "auto_suggest_focus_areas": true
-    },    "notifier_config": {
+    },
+    "notifier_config": {
         "version_tracking": true,
         "prompt_auto_update_enabled": true
     },

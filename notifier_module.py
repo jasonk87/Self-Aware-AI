@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime, timezone
 from typing import Dict, Optional, Any, Callable, List, Union
+from logger_utils import should_log # Added import
 
 def get_current_version() -> str:
     """Get the current version from version.json"""
@@ -14,7 +15,7 @@ def get_current_version() -> str:
                 ver_data = json.load(f)
                 return ver_data.get("version", "0.0.0")
     except Exception as e:
-        print(f"[ERROR] Failed to read version: {e}")
+        if should_log("ERROR"): print(f"[ERROR] Failed to read version: {e}")
     return "0.0.0"
 
 def log_update(summary: str, goals: Union[List[Dict[str, Any]], None] = None, approved_by: Optional[str] = None) -> bool:
@@ -23,11 +24,11 @@ def log_update(summary: str, goals: Union[List[Dict[str, Any]], None] = None, ap
         notifier = Notifier()
         return notifier.log_update(summary, goals, approved_by)
     except Exception as e:
-        print(f"[ERROR] Module-level log_update failed: {str(e)}")
+        if should_log("ERROR"): print(f"[ERROR] Module-level log_update failed: {str(e)}")
         return False
 
 # Fallback logger for standalone testing or if no logger is provided to the class instance
-_CLASS_NOTIFIER_FALLBACK_LOGGER = lambda level, message: print(f"[{level.upper()}] (NotifierClassFallbackLog) {message}")
+_CLASS_NOTIFIER_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (NotifierClassFallbackLog) {message}") if should_log(level.upper()) else None)
 
 class Notifier:
     def __init__(self,
@@ -99,14 +100,15 @@ class Notifier:
 # --- End of Notifier Class ---
 
 if __name__ == "__main__":
-    print("--- Testing Notifier Class (Standalone) ---")
+    if should_log("INFO"): print("--- Testing Notifier Class (Standalone) ---")
 
     # Mock config and logger for testing
     test_notifier_config = {
         "meta_dir": "meta_notifier_test", # Test-specific meta directory
         # File names will default to standard if not in config
     }
-    def main_test_logger_notifier(level, message): print(f"[{level.upper()}] (Notifier_Test) {message}")
+    def main_test_logger_notifier(level, message):
+        if should_log(level.upper()): print(f"[{level.upper()}] (Notifier_Test) {message}")
 
     class MockPromptManagerForNotifier:
         def __init__(self, logger): self.logger = logger
@@ -128,33 +130,33 @@ if __name__ == "__main__":
         prompt_manager_instance=mock_pm_instance_notifier
     )
 
-    print("\n1. Initializing versioning...")
+    if should_log("INFO"): print("\n1. Initializing versioning...")
     notifier_instance_main.init_versioning() # Creates files in meta_notifier_test
 
-    print(f"\n2. Current version: {notifier_instance_main.get_current_version()}")
+    if should_log("INFO"): print(f"\n2. Current version: {notifier_instance_main.get_current_version()}")
 
-    print("\n3. Logging an update...")
+    if should_log("INFO"): print("\n3. Logging an update...")
     notifier_instance_main.log_update("Test summary of changes.", ["Goal A completed", "Goal B done"], approved_by="TestUser")
     
-    print(f"\n4. Version after update: {notifier_instance_main.get_current_version()}")
+    if should_log("INFO"): print(f"\n4. Version after update: {notifier_instance_main.get_current_version()}")
 
-    print(f"\n5. Checking changelog ({notifier_instance_main.changelog_file_path}):")
+    if should_log("INFO"): print(f"\n5. Checking changelog ({notifier_instance_main.changelog_file_path}):")
     if os.path.exists(notifier_instance_main.changelog_file_path):
         with open(notifier_instance_main.changelog_file_path, "r") as f:
             changelog_data = json.load(f)
             if changelog_data and isinstance(changelog_data, list):
-                print(json.dumps(changelog_data[-1], indent=2)) # Print last entry
+                if should_log("DEBUG"): print(json.dumps(changelog_data[-1], indent=2)) # Print last entry
             else:
-                print("   Changelog empty or malformed.")
+                if should_log("WARNING"): print("   Changelog empty or malformed.")
     else:
-        print(f"   {notifier_instance_main.changelog_file_path} not found.")
+        if should_log("WARNING"): print(f"   {notifier_instance_main.changelog_file_path} not found.")
 
-    print(f"\n6. Checking last update flag ({notifier_instance_main.last_update_flag_file_path}):")
+    if should_log("INFO"): print(f"\n6. Checking last update flag ({notifier_instance_main.last_update_flag_file_path}):")
     if os.path.exists(notifier_instance_main.last_update_flag_file_path):
         with open(notifier_instance_main.last_update_flag_file_path, "r") as f_flag:
             flag_data = json.load(f_flag)
-            print(json.dumps(flag_data, indent=2))
+            if should_log("DEBUG"): print(json.dumps(flag_data, indent=2))
     else:
-        print(f"   {notifier_instance_main.last_update_flag_file_path} not found.")
+        if should_log("WARNING"): print(f"   {notifier_instance_main.last_update_flag_file_path} not found.")
 
-    print("\n--- Notifier Class Test Complete ---")
+    if should_log("INFO"): print("\n--- Notifier Class Test Complete ---")

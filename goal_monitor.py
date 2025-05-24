@@ -8,7 +8,7 @@ import traceback
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Any, Union, Literal, TYPE_CHECKING
-from logger_utils import should_log
+# from logger_utils import should_log # Already imported at top-level if this file is processed first
 
 # --- Conditional Imports for Type Checking ---
 if TYPE_CHECKING:
@@ -17,14 +17,16 @@ if TYPE_CHECKING:
     # If 'Goal' were imported, it would also go here if subject to similar issues.
 
 # --- Runtime Imports with Fallbacks ---
+_GOAL_MONITOR_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (GoalMonitorFallbackLog) {message}") if should_log(level.upper()) else None)
+
 try:
     from suggestion_engine import SuggestionEngine, SuggestionStatus, ActorType
 except ImportError:
-    print("CRITICAL (GoalMonitor): suggestion_engine.py not found or types not defined. Suggestion-to-goal features will be impaired.")
+    if should_log("CRITICAL"): print("CRITICAL (GoalMonitor): suggestion_engine.py not found or types not defined. Suggestion-to-goal features will be impaired.")
     # Define fallback CLASS for SuggestionEngine
     class SuggestionEngine: # Fallback class definition
         def __init__(self, logger=None):
-            self.logger = logger if logger else print
+            self.logger = logger if logger else _GOAL_MONITOR_FALLBACK_LOGGER
             self.logger("WARNING (GoalMonitor): Using Fallback SuggestionEngine class.")
         def get_suggestion_by_id_or_timestamp(self, identifier: str) -> Optional[Dict[str, Any]]:
             self.logger(f"WARNING (GoalMonitor): Fallback SuggestionEngine.get_suggestion_by_id_or_timestamp called for {identifier}")
@@ -85,7 +87,7 @@ class GoalMonitor:
                  suggestion_engine_instance: Optional[SuggestionEngine] = None, logger=None): # No quotes
         self.goals_file = goals_file
         self.active_goal_file = active_goal_file
-        self.logger = logger if logger else print
+        self.logger = logger if logger else _GOAL_MONITOR_FALLBACK_LOGGER
         # Ensure SuggestionEngine is always a class (real or fallback) before instantiation
         current_suggestion_engine_type = SuggestionEngine # This refers to the runtime version (real or fallback)
         self.suggestion_engine: SuggestionEngine = suggestion_engine_instance if suggestion_engine_instance else current_suggestion_engine_type(logger=self.logger) # No quotes
@@ -146,21 +148,17 @@ class GoalMonitor:
                     try:
                         loaded_goals_list.append(Goal(**{k: v for k, v in goal_args.items() if k in Goal.__annotations__}))
                     except TypeError as te_goal:
-                        if should_log("ERROR"):
-                            self.logger("ERROR", f"TypeError loading goal: {te_goal}")
+                        self.logger("ERROR", f"TypeError loading goal: {te_goal}")
                 return loaded_goals_list
         except (json.JSONDecodeError, TypeError) as e:
-            if should_log("ERROR"):
-                self.logger("ERROR", f"Error loading goals from {self.goals_file}: {e}. Initializing with empty list.")
+            self.logger("ERROR", f"Error loading goals from {self.goals_file}: {e}. Initializing with empty list.")
             if os.path.exists(self.goals_file): 
                 backup_file = f"{self.goals_file}.bak_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
                 try:
                     os.rename(self.goals_file, backup_file)
-                    if should_log("WARNING"):
-                        self.logger("WARNING", f"Corrupt goals file backed up to {backup_file}")
+                    self.logger("WARNING", f"Corrupt goals file backed up to {backup_file}")
                 except OSError as ose:
-                    if should_log("ERROR"):
-                        self.logger("ERROR", f"Failed to backup corrupt goals file: {ose}")
+                    self.logger("ERROR", f"Failed to backup corrupt goals file: {ose}")
             return []
 
     def _save_goals_internal(self, goals_list: List[Goal]): # Internal save method
@@ -417,15 +415,15 @@ class GoalMonitor:
 if __name__ == '__main__':
     # This __main__ block is for testing goal_monitor.py standalone.
     # It's not part of the AI's core operational logic when AICore runs it.
-    print("--- Testing GoalMonitor (Standalone - Corrected Imports & Structure) ---")
+    if should_log("INFO"): print("--- Testing GoalMonitor (Standalone - Corrected Imports & Structure) ---")
     if not os.path.exists("meta"): os.makedirs("meta") # Ensure meta dir for test files
     
     # For testing, SuggestionEngine needs to be instantiated
     # It will try to load/create meta/suggestions.json
-    s_engine_for_gm_test = SuggestionEngine(logger=print) 
-    g_monitor_for_gm_test = GoalMonitor(suggestion_engine_instance=s_engine_for_gm_test, logger=print)
+    s_engine_for_gm_test = SuggestionEngine(logger=_GOAL_MONITOR_FALLBACK_LOGGER) 
+    g_monitor_for_gm_test = GoalMonitor(suggestion_engine_instance=s_engine_for_gm_test, logger=_GOAL_MONITOR_FALLBACK_LOGGER)
 
-    print(f"Initial goals for GM test: {len(g_monitor_for_gm_test.goals)}")
+    if should_log("INFO"): print(f"Initial goals for GM test: {len(g_monitor_for_gm_test.goals)}")
 
     # Test creating a goal from a suggestion (AI approved)
     # Add a suggestion directly via engine for test
@@ -443,18 +441,19 @@ if __name__ == '__main__':
         added_sugg_for_gm_ai = next((s for s in all_current_suggs if s.get("suggestion") == "GM Test: AI approved suggestion."), None)
 
     if added_sugg_for_gm_ai and added_sugg_for_gm_ai.get("id"): 
-        print(f"Created test suggestion ID for GM test (AI approve): {added_sugg_for_gm_ai['id']}")
+        if should_log("INFO"): print(f"Created test suggestion ID for GM test (AI approve): {added_sugg_for_gm_ai['id']}")
         goal_from_sugg_gm_ai_test = g_monitor_for_gm_test.create_goal_from_suggestion(added_sugg_for_gm_ai["id"], approved_by="AI")
         if goal_from_sugg_gm_ai_test:
-            print(f"  Goal from AI approved suggestion: {goal_from_sugg_gm_ai_test.id}, Status: {goal_from_sugg_gm_ai_test.status}")
+            if should_log("DEBUG"): print(f"  Goal from AI approved suggestion: {goal_from_sugg_gm_ai_test.id}, Status: {goal_from_sugg_gm_ai_test.status}")
             updated_s_gm_ai_test = s_engine_for_gm_test.get_suggestion_by_id_or_timestamp(added_sugg_for_gm_ai["id"])
-            if updated_s_gm_ai_test: print(f"  Suggestion status after AI approval: {updated_s_gm_ai_test.get('status')}, Approved by: {updated_s_gm_ai_test.get('approved_by')}")
+            if updated_s_gm_ai_test:
+                if should_log("DEBUG"): print(f"  Suggestion status after AI approval: {updated_s_gm_ai_test.get('status')}, Approved by: {updated_s_gm_ai_test.get('approved_by')}")
         else:
-            print(f"  Failed to create goal from AI approved suggestion {added_sugg_for_gm_ai['id']}.")
+            if should_log("ERROR"): print(f"  Failed to create goal from AI approved suggestion {added_sugg_for_gm_ai['id']}.")
     else:
-        print("  Failed to create/retrieve initial test suggestion for AI approval in GM test.")
+        if should_log("ERROR"): print("  Failed to create/retrieve initial test suggestion for AI approval in GM test.")
     
-    print(f"\nTotal goals after GM tests: {len(g_monitor_for_gm_test.goals)}")
+    if should_log("INFO"): print(f"\nTotal goals after GM tests: {len(g_monitor_for_gm_test.goals)}")
     for g_item_main_gm in g_monitor_for_gm_test.goals[-3:]: 
-        print(f" - ID:{g_item_main_gm.id[:10]}.. Th:{g_item_main_gm.thread_id[-6:]} P{g_item_main_gm.priority} St:{g_item_main_gm.status:<12} Desc:'{g_item_main_gm.description[:40]}...'")
-    print("\n--- GoalMonitor __main__ Test Complete ---")
+        if should_log("DEBUG"): print(f" - ID:{g_item_main_gm.id[:10]}.. Th:{g_item_main_gm.thread_id[-6:]} P{g_item_main_gm.priority} St:{g_item_main_gm.status:<12} Desc:'{g_item_main_gm.description[:40]}...'")
+    if should_log("INFO"): print("\n--- GoalMonitor __main__ Test Complete ---")
