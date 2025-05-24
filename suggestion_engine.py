@@ -386,6 +386,37 @@ class SuggestionEngine:
             reason_for_change="Suggestion approved for goal creation."
         )
 
+    def _create_suggestion_object(self, suggestion_text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Creates a standardized suggestion object from generated text and context.
+        """
+        timestamp_now = datetime.now(timezone.utc).isoformat()
+        suggestion_id = f"sugg_{uuid.uuid4().hex[:8]}" # Generate a unique ID
+
+        # Basic suggestion structure
+        suggestion_obj = {
+            "id": suggestion_id,
+            "timestamp": timestamp_now,
+            "suggestion": suggestion_text,
+            "status": "pending",  # Default status for new AI suggestions
+            "priority": context.get("derived_priority", 5), # You might derive priority from context
+            "origin": context.get("origin_details", "ai_generated_via_generate_ai_suggestion"),
+            "source_model": self.ai_core_model_name, # Assuming self.ai_core_model_name is set
+            "related_thread_id": context.get("related_thread_id", ""),
+            "details": {
+                "generation_context_summary": {k: str(v)[:200] + '...' if len(str(v)) > 200 else v 
+                                               for k, v in context.items()}, # Example detail
+                "generation_method": "autonomous_generation" # Or based on context
+            },
+            "approved_by": None,
+            "rejected_by": None,
+            "rejection_reason": None,
+            "modification_history": []
+        }
+        
+        self.logger("INFO", f"(SuggestionEngine class) Created new suggestion object ID: {suggestion_id} with text: \"{suggestion_text[:50]}...\"")
+        return suggestion_obj
+
     def add_new_suggestion_object(self, suggestion_obj: Dict[str, Any]) -> bool:
         if not isinstance(suggestion_obj, dict) or "suggestion" not in suggestion_obj:
             self.logger("ERROR", "(SuggestionEngine class) Invalid suggestion object provided to add_new_suggestion_object.")
@@ -661,6 +692,24 @@ class SuggestionEngine:
             self.logger("ERROR", f"Error gathering conversation patterns: {e}")
             
         return patterns
+
+    def get_pending_suggestions_summary_for_prompt(self, max_suggestions: Optional[int] = None) -> str: # Add max_suggestions argument
+        """Return a summary string of pending suggestions for prompt context."""
+        try:
+            suggestions = self.load_suggestions() if hasattr(self, 'load_suggestions') else []
+            pending = [s for s in suggestions if s.get('status') == 'pending']
+            if not pending:
+                return "No pending suggestions."
+
+            # Use max_suggestions if provided
+            num_to_display = len(pending)
+            if max_suggestions is not None and max_suggestions > 0:
+                num_to_display = min(len(pending), max_suggestions)
+
+            summary_lines = [f"- {s.get('suggestion', '[No text]')} (added {s.get('created_at', 'unknown')})" for s in pending[:num_to_display]]
+            return f"Pending suggestions ({len(pending)} total, showing up to {num_to_display}):\n" + "\n".join(summary_lines)
+        except Exception as e:
+            return f"[Error generating pending suggestions summary: {e}]"
 
 if __name__ == "__main__":
     print("--- Testing SuggestionEngine Class (Standalone from User's Full Code) ---")

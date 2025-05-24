@@ -3,9 +3,12 @@ import json
 import uuid
 import os
 import re
+import time
+import traceback
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Any, Union, Literal, TYPE_CHECKING # Added TYPE_CHECKING
+from typing import List, Dict, Optional, Any, Union, Literal, TYPE_CHECKING
+from logger_utils import should_log
 
 # --- Conditional Imports for Type Checking ---
 if TYPE_CHECKING:
@@ -100,18 +103,14 @@ class GoalMonitor:
 
 
     def _load_goals(self) -> List[Goal]:
-        if not os.path.exists(self.goals_file):
-            return []
         try:
             with open(self.goals_file, "r", encoding="utf-8") as f:
                 content = f.read()
-                if not content.strip(): return [] # Handle empty file
-                goals_data = json.loads(content)
-                if not isinstance(goals_data, list): # Ensure root is a list
-                    self.logger(f"WARNING (GoalMonitor): Goals file content is not a list. Reinitializing {self.goals_file}")
-                    self._save_goals_internal([]) # Pass empty list to internal save
+                if not content.strip(): 
                     return []
-                
+                goals_data = json.loads(content)
+                if not isinstance(goals_data, list):                    
+                    return []
                 loaded_goals_list = []
                 for g_data in goals_data:
                     if not isinstance(g_data, dict): continue 
@@ -147,17 +146,21 @@ class GoalMonitor:
                     try:
                         loaded_goals_list.append(Goal(**{k: v for k, v in goal_args.items() if k in Goal.__annotations__}))
                     except TypeError as te_goal:
-                        self.logger(f"ERROR (GoalMonitor): Type error creating Goal object from data: {g_data}. Error: {te_goal}")
+                        if should_log("ERROR"):
+                            self.logger("ERROR", f"TypeError loading goal: {te_goal}")
                 return loaded_goals_list
         except (json.JSONDecodeError, TypeError) as e:
-            self.logger(f"Error loading goals from {self.goals_file}: {e}. Initializing with empty list.")
+            if should_log("ERROR"):
+                self.logger("ERROR", f"Error loading goals from {self.goals_file}: {e}. Initializing with empty list.")
             if os.path.exists(self.goals_file): 
                 backup_file = f"{self.goals_file}.bak_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
                 try:
                     os.rename(self.goals_file, backup_file)
-                    self.logger(f"Corrupt goals file backed up to {backup_file}")
+                    if should_log("WARNING"):
+                        self.logger("WARNING", f"Corrupt goals file backed up to {backup_file}")
                 except OSError as ose:
-                    self.logger(f"Could not back up corrupt goals file: {ose}")
+                    if should_log("ERROR"):
+                        self.logger("ERROR", f"Failed to backup corrupt goals file: {ose}")
             return []
 
     def _save_goals_internal(self, goals_list: List[Goal]): # Internal save method
@@ -397,7 +400,7 @@ class GoalMonitor:
             # The approved_by parameter for mark_suggestion_as_approved_by_actor
             # also expects ActorType. Pass the validated string.
             self.suggestion_engine.mark_suggestion_as_approved_by_actor(suggestion_identifier, approved_by=valid_approved_by_str) # type: ignore
-            self.logger(f"Goal {new_goal.id} created from suggestion '{suggestion_identifier}', approved by {valid_approved_by_str}.")
+            self.logger("INFO", f"Goal {new_goal.id} created from suggestion '{suggestion_identifier}', approved by {valid_approved_by_str}.")
         return new_goal
 
     def get_archived_goals(self, last_n: Optional[int] = None) -> List[Goal]:

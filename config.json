@@ -68,14 +68,14 @@
         "diff_checking": true
     },
     "tool_runner_config": {
-        "tool_run_timeout": 30,
+        "tool_run_timeout": 300,
         "max_output_lines": 1000
     },
     "mission_manager_config": {
         "auto_suggest_focus_areas": true
-    },
-    "notifier_config": {
+    },    "notifier_config": {
         "version_tracking": true,
         "prompt_auto_update_enabled": true
-    }
+    },
+    "logger_level": "INFO"
 }

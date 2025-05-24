@@ -268,5 +268,103 @@
         "text": "[Error: Planner LLM call failed: AICore._query_llm_for_planner_adapter() got an unexpected keyword argument 'timeout']"
       }
     ]
+  },
+  {
+    "timestamp": "2025-05-24T10:25:30.846669+00:00",
+    "thread_id": "9ab812ec-fe4d-414b-84f3-4dee3960932f",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "what is today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: query_llm_internal() got an unexpected keyword argument 'messages']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-24T10:30:20.242224+00:00",
+    "thread_id": "98c9bc52-6857-4329-a8fa-388efb0da6ea",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "what is today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: <lambda>() missing 1 required positional argument: 'msg']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-24T10:30:27.465366+00:00",
+    "thread_id": "e3e20516-75c4-4784-a54c-6e9ebc4ad24d",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "what is todaay?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: <lambda>() missing 1 required positional argument: 'msg']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-24T10:33:53.925925+00:00",
+    "thread_id": "55c1fc2f-9894-40d3-82ee-0875a4b185ff",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "how are you?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: <lambda>() missing 1 required positional argument: 'msg']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-24T11:08:14.581765+00:00",
+    "thread_id": "474c0e67-65ed-433d-afda-4fe0e7823e4f",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "how are you doing today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: query_llm_internal() got an unexpected keyword argument 'system_prompt_override_ignored']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-24T11:11:57.518274+00:00",
+    "thread_id": "71ead0e1-a872-421e-90be-357937a110c1",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "what day is today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: query_llm_internal() got an unexpected keyword argument 'system_prompt_override_ignored']"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-05-24T11:14:24.983152+00:00",
+    "thread_id": "8649c9de-99fc-41c6-9f8c-e8f98d2c7628",
+    "conversation_snippet": [
+      {
+        "speaker": "User",
+        "text": "what day is today?"
+      },
+      {
+        "speaker": "AI",
+        "text": "[Error: Planner LLM call failed: query_llm_internal() got an unexpected keyword argument 'timeout_override_from_planner']"
+      }
+    ]
   }
 ]

@@ -367,5 +367,113 @@
     "llm_qualitative_notes": null,
     "final_score_assigned": 24,
     "timestamp": "2025-05-18T16:24:01.929169+00:00"
+  },
+  {
+    "goal_id": "78b35091-b2e6-4a95-afdd-af5b5e04d270",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: modify_the__tools___d__python_python_exe_6b5bb7.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-23T23:23:45.403046+00:00"
+  },
+  {
+    "goal_id": "2c462f95-26a9-4cae-b1be-e673ab0e7876",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: modify_the__tools___d__python_python_exe_6b5bb7.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-23T23:27:06.009413+00:00"
+  },
+  {
+    "goal_id": "38754cbe-50fc-4ad2-89eb-a3c2e4a26628",
+    "analytical_score": -29,
+    "analytical_notes": "Status: failed_max_retries, Prio: 3, Src: decomposition, Attempts: 1. FailCat: ToolExecutionFailure. SubtaskCat: code_generation_tool. Tool: __d__python_python_exe_c__users_owner_de_6b5bb7.py. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P3): -9.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -29,
+    "timestamp": "2025-05-23T23:28:59.453331+00:00"
+  },
+  {
+    "goal_id": "a3e7149c-0c79-4420-b3ea-b3e254641979",
+    "analytical_score": -26,
+    "analytical_notes": "Status: failed_max_retries, Prio: 2, Src: AI_self_correction, Attempts: 2. FailCat: ToolExecutionFailure. SubtaskCat: code_generation_tool. Tool: modify_the__tools___d__python_python_exe_6b5bb7.py. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P2): -6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": "LLM response parsing error: Expecting value: line 1 column 1 (char 0)",
+    "final_score_assigned": -26,
+    "timestamp": "2025-05-23T23:30:18.446605+00:00"
+  },
+  {
+    "goal_id": "6c78a42d-ac2c-4a6b-8b2f-15e14cfb3726",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: modify_the__tools___d__python_python_exe_35d6f9.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-23T23:39:43.587876+00:00"
+  },
+  {
+    "goal_id": "4a6e1d99-a6ee-4bca-9ebc-44b30f4bf1cd",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: modify_the__tools___d__python_python_exe_35d6f9.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-23T23:42:50.025969+00:00"
+  },
+  {
+    "goal_id": "5f1b5110-1f1e-4d93-841c-ad6b17682a19",
+    "analytical_score": -29,
+    "analytical_notes": "Status: failed_max_retries, Prio: 3, Src: decomposition, Attempts: 1. FailCat: ToolExecutionFailure. SubtaskCat: code_generation_tool. Tool: __d__python_python_exe_c__users_owner_de_35d6f9.py. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P3): -9.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -29,
+    "timestamp": "2025-05-23T23:44:44.927612+00:00"
+  },
+  {
+    "goal_id": "b5b6db8c-3f9f-45e3-ad28-d9394a07a283",
+    "analytical_score": -26,
+    "analytical_notes": "Status: failed_max_retries, Prio: 2, Src: AI_self_correction, Attempts: 2. FailCat: ToolExecutionFailure. SubtaskCat: code_generation_tool. Tool: modify_the__tools___d__python_python_exe_35d6f9.py. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P2): -6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": "LLM response parsing error: Expecting value: line 1 column 1 (char 0)",
+    "final_score_assigned": -26,
+    "timestamp": "2025-05-23T23:46:08.031899+00:00"
+  },
+  {
+    "goal_id": "90c76c4f-3bab-4c41-83df-307b49532844",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: modify_the__tools___d__python_python_exe_f72412.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-23T23:55:36.812458+00:00"
+  },
+  {
+    "goal_id": "068e1a42-cad3-46e3-89fb-ed729c435b4a",
+    "analytical_score": 34,
+    "analytical_notes": "Status: completed, Prio: 2, Src: AI_self_correction, Attempts: 0. SubtaskCat: code_refinement. Tool: modify_the__tools___d__python_python_exe_f72412.py. Base score for completion: +15. Successful self-correction bonus: +8. First attempt success: +5. Priority completion bonus (P2): +6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": 34,
+    "timestamp": "2025-05-23T23:58:52.145614+00:00"
+  },
+  {
+    "goal_id": "f79ab23f-4d6a-4318-826f-20c26ce8300d",
+    "analytical_score": -29,
+    "analytical_notes": "Status: failed_max_retries, Prio: 3, Src: decomposition, Attempts: 1. FailCat: ToolExecutionFailure. SubtaskCat: code_generation_tool. Tool: __d__python_python_exe_c__users_owner_de_f72412.py. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P3): -9.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": null,
+    "final_score_assigned": -29,
+    "timestamp": "2025-05-24T00:00:43.718174+00:00"
+  },
+  {
+    "goal_id": "f4487a32-bafe-42ef-8874-f8240d486439",
+    "analytical_score": -26,
+    "analytical_notes": "Status: failed_max_retries, Prio: 2, Src: AI_self_correction, Attempts: 2. FailCat: ToolExecutionFailure. SubtaskCat: code_generation_tool. Tool: modify_the__tools___d__python_python_exe_f72412.py. Base penalty for max retries/unclear failure: -20. Priority failure penalty (P2): -6.",
+    "llm_adjusted_score": null,
+    "llm_qualitative_notes": "LLM response parsing error: Expecting value: line 1 column 1 (char 0)",
+    "final_score_assigned": -26,
+    "timestamp": "2025-05-24T00:02:09.627823+00:00"
   }
 ]

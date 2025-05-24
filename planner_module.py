@@ -54,6 +54,8 @@ class Planner:
              logger=None,
              tool_registry_or_path: Optional[Union[Any, str]] = None):
 
+        self.planner_cfg = config.get("planner_config", {}) if config else {}
+
         # Runtime check for critical dependencies (using isinstance with the runtime types)
         # This ensures that even if TYPE_CHECKING provided a type, at runtime we have a usable class.
         # Note: prompt_manager, goal_monitor, etc. here are the runtime variables from parameters.
@@ -220,30 +222,34 @@ class Planner:
 
         # Prepare available tools summary
         tool_details_list = []
-        if self.tool_registry: # Assuming self.tool_registry is populated (e.g. from ToolRegistryManager)
+        # Check if self.tool_registry_data exists and is populated
+        if hasattr(self, 'tool_registry_data') and self.tool_registry_data:
             try:
-                all_tools = self.tool_registry.get_all_tools_metadata() if hasattr(self.tool_registry, 'get_all_tools_metadata') else []
-                if not all_tools and hasattr(self.tool_registry, 'tools') and isinstance(self.tool_registry.tools, dict): # Fallback if get_all_tools_metadata not present
-                    all_tools = list(self.tool_registry.tools.values())
+                # self.tool_registry_data is already the list of tool metadata dictionaries
+                all_tools_metadata = self.tool_registry_data 
 
-                for tool_meta in all_tools[:self.planner_cfg.get("planner_context_max_tools", 5)]:
+                for tool_meta in all_tools_metadata[:self.planner_cfg.get("planner_context_max_tools", 5)]:
+                    # tool_meta is expected to be a dict from the JSON
                     if isinstance(tool_meta, dict):
                         tool_name = tool_meta.get('name', 'Unknown Tool')
-                        tool_desc = tool_meta.get('description', 'No description.')
+                        tool_desc_raw = tool_meta.get('description', 'No description.')
+                        # Ensure description is a string before slicing
+                        tool_desc = str(tool_desc_raw) if tool_desc_raw is not None else 'No description.'
                         tool_details_list.append(f"- {tool_name}: {tool_desc[:100]}{'...' if len(tool_desc) > 100 else ''}")
-                    elif hasattr(tool_meta, 'name') and hasattr(tool_meta, 'description'): # If tool_meta are objects
-                         tool_details_list.append(f"- {tool_meta.name}: {tool_meta.description[:100]}{'...' if len(tool_meta.description) > 100 else ''}")
-
+                    # The 'elif hasattr(tool_meta, 'name')' part is removed 
+                    # as items in tool_registry_data are expected to be dictionaries.
 
                 if tool_details_list:
                     template_fill_data["available_tools_summary"] = "\n".join(tool_details_list)
                 else:
-                    template_fill_data["available_tools_summary"] = "No tools currently registered or available."
+                    # This message indicates that tool_registry_data was present but might be empty or yielded no details.
+                    template_fill_data["available_tools_summary"] = "No tools currently registered or no details processed from tool_registry_data."
             except Exception as e_tool_fetch:
-                self.logger("ERROR", f"(Planner._construct_prompt) Error fetching tool details: {e_tool_fetch}")
-                template_fill_data["available_tools_summary"] = "Error fetching tool information."
+                self.logger("ERROR", f"(Planner._construct_prompt) Error processing tool_registry_data: {e_tool_fetch}")
+                template_fill_data["available_tools_summary"] = "Error processing tool information from tool_registry_data."
         else:
-            template_fill_data["available_tools_summary"] = "Tool registry not available."
+            # This 'else' executes if self.tool_registry_data is not found or is empty.
+            template_fill_data["available_tools_summary"] = "Tool registry data not available or empty in Planner."
 
         # Construct the main part of the prompt using the base template
         # This was the first place we corrected get_filled_template
@@ -276,23 +282,26 @@ class Planner:
                 json_text = response_text[start_index : end_index+1]
                 parsed = json.loads(json_text)
                 if "next_action" not in parsed:
-                    self.logger(f"LLM response for planner missing 'next_action': {json_text}")
+                    # Corrected logger call:
+                    self.logger("WARNING", f"LLM response for planner missing 'next_action': {json_text}")
                     return None
                 return parsed
             else:
-                self.logger(f"Could not find valid JSON object in LLM response: {response_text}")
+                # Corrected logger call:
+                self.logger("WARNING", f"Could not find valid JSON object in LLM response: {response_text}") 
                 return None
         except json.JSONDecodeError as e:
-            self.logger(f"Error decoding LLM JSON response for planner: {e}\nResponse was: {response_text}")
+            # Corrected logger call:
+            self.logger("ERROR", f"Error decoding LLM JSON response for planner: {e}\nResponse was: {response_text}")
             return None
         except Exception as e_unexp: 
-            self.logger(f"Unexpected error parsing LLM response for planner: {e_unexp}\nResponse was: {response_text}")
+            # Corrected logger call:
+            self.logger("ERROR", f"Unexpected error parsing LLM response for planner: {e_unexp}\nResponse was: {response_text}")
             return None
-
 
     def decide_next_action(self, conversation_history: List[Dict[str,str]], system_status: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
         if not self.query_llm or not self.goal_monitor or not self.suggestion_engine: 
-            self.logger("CRITICAL (Planner): Missing query_llm function, GoalMonitor, or SuggestionEngine. Cannot decide action.")
+            self.logger("CRITICAL", "(Planner): Missing query_llm function, GoalMonitor, or SuggestionEngine. Cannot decide action.")
             return "respond_to_user", {"response_text": "[Error: Planner critical component (LLM access or state manager) missing.]"}
 
         context = self._gather_context(conversation_history, system_status)
@@ -300,25 +309,42 @@ class Planner:
         
         planner_cfg = self.config.get("planner_config", self.config) 
         
-        self.logger(f"\n--- Planner Prompt for LLM (first 1000 chars) ---\n{prompt[:1000]}...\n--- End Planner Prompt ---\n")
+        # Initialize response_text to prevent UnboundLocalError
+        response_text: Optional[str] = None 
+        
+        # This logger call is for the prompt, not response_text, and should be fine if self.logger expects (level, msg)
+        self.logger("DEBUG", f"\n--- Planner Prompt for LLM (first 1000 chars) ---\n{prompt[:1000]}...\n--- End Planner LLM Raw Response ---\n") # Corrected from your file to assume this line meant End Planner *Prompt*
 
         try:
             # Call the LLM function passed during __init__
             response_text = self.query_llm(
-                prompt_text=prompt,  # query_llm expects full prompt if not raw
-                system_prompt_override_ignored=None, # Assuming query_llm handles system prompt if needed, or prompt contains it
-                raw_output_ignored=True, # If query_llm expects to receive the exact prompt string for the API
-                timeout_override_from_planner=planner_cfg.get("planner_llm_timeout", 300)
+                prompt_text=prompt,
+                # system_prompt_override_ignored is not meaningfully used by the adapter to call query_llm_internal
+                # raw_output_ignored is redundant as the adapter sets raw_output=True for the planner
+                # timeout_override_from_planner=planner_cfg.get("planner_llm_timeout", 300)
             )
-            self.logger(f"\n--- Planner LLM Raw Response ---\n{response_text}\n--- End Planner LLM Raw Response ---\n")
+            # Conditionally log response_text only if it's not None
+            if response_text is not None: # This was your line 309
+                # Corrected logger call:
+                self.logger("DEBUG", f"\n--- Planner LLM Raw Response ---\n{response_text}\n--- End Planner LLM Raw Response ---\n")
+            else:
+                self.logger("WARNING", "(Planner): self.query_llm returned None, which was unexpected. Treating as an LLM call failure.")
+                # Set to an error string so parsing below can handle it as a known error type
+                response_text = "[Error: Planner LLM query unexpectedly returned None]"
         except Exception as e:
-            self.logger(f"LLM call failed for planner via query_llm: {e}")
+            # Corrected logger call:
+            self.logger("ERROR", f"LLM call failed for planner via query_llm: {e}") # This was your line 312
             return "respond_to_user", {"response_text": f"[Error: Planner LLM call failed: {e}]"}
 
+        # Ensure response_text is not None before parsing
+        if response_text is None:
+            self.logger("ERROR", "(Planner): response_text is None before parsing. This indicates a critical failure in the LLM call.")
+            return "respond_to_user", {"response_text": "[Error: Planner failed to get any response from LLM.]"}
+            
         parsed_response = self._parse_llm_response(response_text)
 
         if not parsed_response or "next_action" not in parsed_response:
-            self.logger("Planner failed to get a valid action from LLM. Defaulting to error response for user.")
+            self.logger("WARNING", "Planner failed to get a valid action from LLM. Defaulting to error response for user.") # Changed from ERROR to WARNING for this specific case
             return "respond_to_user", {"response_text": "[Error: Planner had an internal issue interpreting AI strategy.]"}
 
         action = parsed_response.get("next_action")
@@ -326,7 +352,7 @@ class Planner:
         if not isinstance(action_details, dict): action_details = {} 
 
         if action not in self.available_actions:
-            self.logger(f"LLM proposed an invalid action: {action}. Defaulting to error response.")
+            self.logger("WARNING", f"LLM proposed an invalid action: {action}. Defaulting to error response.") # Changed from ERROR
             last_turn = conversation_history[-1] if conversation_history else {}
             if last_turn.get("role") == "user" or last_turn.get("speaker") == "user":
                  return "respond_to_user", {"response_text": "I'm having a little trouble deciding on my next internal step due to an unexpected suggestion from my strategy module. Could you perhaps rephrase or try a different approach?"}
@@ -336,40 +362,47 @@ class Planner:
         if action == "manage_suggestions":
             sugg_decision = action_details.get("suggestion_decision")
             if not sugg_decision or not isinstance(sugg_decision, dict):
-                self.logger("Planner: 'manage_suggestions' action chosen, but 'suggestion_decision' details missing/invalid.")
+                self.logger("WARNING", "(Planner): 'manage_suggestions' action chosen, but 'suggestion_decision' details missing/invalid.") # Changed from ERROR
                 return "respond_to_user", {"response_text": "I reviewed internal suggestions but had an issue processing the decision."}
 
             sugg_id_or_ts = sugg_decision.get("suggestion_id") 
             sugg_action_llm = sugg_decision.get("action_to_take") 
             
-            original_suggestion = self.suggestion_engine.get_suggestion_by_id_or_timestamp(sugg_id_or_ts) # type: ignore
+            if not self.suggestion_engine: # Guard against SuggestionEngine being None
+                self.logger("ERROR", "(Planner): SuggestionEngine is not available to manage_suggestions.")
+                return "respond_to_user", {"response_text": "Internal error: Suggestion management component not ready."}
+
+            original_suggestion = self.suggestion_engine.get_suggestion_by_id_or_timestamp(sugg_id_or_ts)
             if not original_suggestion:
                 display_sugg_id = str(sugg_id_or_ts)[-6:] if sugg_id_or_ts else "unknown"
-                self.logger(f"Planner: Suggestion identifier '{sugg_id_or_ts}' from LLM not found.")
+                self.logger("WARNING", f"(Planner): Suggestion identifier '{sugg_id_or_ts}' from LLM not found.") # Changed from ERROR
                 return "respond_to_user", {"response_text": f"I tried to manage suggestion (ID like ..{display_sugg_id}), but couldn't find it."}
 
             original_desc_for_response = original_suggestion.get('suggestion', 'an internal item')[:70]
 
             if sugg_action_llm == "approve":
-                self.logger(f"Planner: AI is approving suggestion '{sugg_id_or_ts}': {original_desc_for_response}...")
-                new_goal = self.goal_monitor.create_goal_from_suggestion(sugg_id_or_ts, approved_by="AI") # type: ignore
+                self.logger("INFO", f"(Planner): AI is approving suggestion '{sugg_id_or_ts}': {original_desc_for_response}...")
+                if not self.goal_monitor: # Guard
+                    self.logger("ERROR", "(Planner): GoalMonitor not available to approve suggestion.")
+                    return "respond_to_user", {"response_text": "Internal error: Goal management component not ready for suggestion approval."}
+                new_goal = self.goal_monitor.create_goal_from_suggestion(sugg_id_or_ts, approved_by="AI")
                 if new_goal:
                     return "respond_to_user", {"response_text": f"I've reviewed suggestions and decided to act on: '{original_desc_for_response}...'. New goal (ID ..{new_goal.id[-6:]}) created."}
                 else:
                     return "respond_to_user", {"response_text": f"I tried to approve suggestion '{original_desc_for_response}...' but failed to create a goal. Status: {original_suggestion.get('status')}."}
 
             elif sugg_action_llm == "modify":
-                new_desc_llm = sugg_decision.get("new_description") # LLM should provide 'new_description' not 'suggestion'
+                new_desc_llm = sugg_decision.get("new_description")
                 mod_reason_llm = sugg_decision.get("modification_reason", "AI refined the suggestion.")
                 new_priority_llm = sugg_decision.get("new_priority") 
                 
                 if new_desc_llm:
-                    self.logger(f"Planner: AI is modifying suggestion '{sugg_id_or_ts}'. New desc: {new_desc_llm[:50]}...")
-                    update_payload: Dict[str,Any] = {"suggestion": new_desc_llm} # Pass as 'suggestion' key for update_suggestion_status_details
+                    self.logger("INFO", f"(Planner): AI is modifying suggestion '{sugg_id_or_ts}'. New desc: {new_desc_llm[:50]}...")
+                    update_payload: Dict[str,Any] = {"suggestion": new_desc_llm}
                     if isinstance(new_priority_llm, int) and 1 <= new_priority_llm <= 10:
                         update_payload["priority"] = new_priority_llm
                     
-                    updated_sugg_flag = self.suggestion_engine.update_suggestion_status_details( # type: ignore
+                    updated_sugg_flag = self.suggestion_engine.update_suggestion_status_details(
                         sugg_id_or_ts, actor="AI", updates_dict=update_payload, reason_for_change=mod_reason_llm
                     )
                     if updated_sugg_flag:
@@ -377,13 +410,13 @@ class Planner:
                     else:
                          return "respond_to_user", {"response_text": f"I tried to modify suggestion ('{original_desc_for_response}...') but the update failed."}
                 else:
-                    self.logger("Planner: 'modify' suggestion action by LLM, but 'new_description' missing.")
+                    self.logger("WARNING", "(Planner): 'modify' suggestion action by LLM, but 'new_description' missing.") # Changed from ERROR
                     return "respond_to_user", {"response_text": "I considered modifying a suggestion but lacked clear refinement details."}
 
             elif sugg_action_llm == "reject":
                 rej_reason_llm = sugg_decision.get("rejection_reason", "AI determined it's not currently viable or necessary.")
-                self.logger(f"Planner: AI is rejecting suggestion '{sugg_id_or_ts}': {original_desc_for_response}... Reason: {rej_reason_llm}")
-                rejected_flag = self.suggestion_engine.archive_suggestion_as_rejected_by_actor( # type: ignore
+                self.logger("INFO", f"(Planner): AI is rejecting suggestion '{sugg_id_or_ts}': {original_desc_for_response}... Reason: {rej_reason_llm}")
+                rejected_flag = self.suggestion_engine.archive_suggestion_as_rejected_by_actor(
                     sugg_id_or_ts, reason=rej_reason_llm, rejected_by="AI" 
                 )
                 if rejected_flag:
@@ -391,7 +424,7 @@ class Planner:
                 else:
                     return "respond_to_user", {"response_text": f"I tried to reject suggestion ('{original_desc_for_response}...') but archival failed."}
             else: 
-                self.logger(f"Planner: Unknown suggestion management sub-action '{sugg_action_llm}' for '{sugg_id_or_ts}'.")
+                self.logger("WARNING", f"(Planner): Unknown suggestion management sub-action '{sugg_action_llm}' for '{sugg_id_or_ts}'.") # Changed from ERROR
                 return "respond_to_user", {"response_text": f"I tried to manage a suggestion but received an unclear instruction ('{sugg_action_llm}')."}
 
         # --- Other Actions ---
@@ -399,18 +432,21 @@ class Planner:
             desc = action_details.get("description")
             if desc:
                 thread_id_for_new_goal = action_details.get("thread_id", f"thr_{uuid.uuid4().hex[:8]}") 
-                self.goal_monitor.create_new_goal( # type: ignore
+                if not self.goal_monitor: # Guard
+                    self.logger("ERROR", "(Planner): GoalMonitor not available to create_goal.")
+                    return "respond_to_user", {"response_text": "Internal error: Goal management component not ready for goal creation."}
+                self.goal_monitor.create_new_goal(
                     description=desc, details=action_details.get("details", {}),
                     priority=action_details.get("priority", 5), 
                     goal_type=action_details.get("goal_type", "task"), 
                     created_by="AI", thread_id_param=thread_id_for_new_goal
                 )
-                self.logger(f"Planner: AI Created new goal - '{desc[:50]}...' (Thread: ..{thread_id_for_new_goal[-6:]})")
+                self.logger("INFO", f"(Planner): AI Created new goal - '{desc[:50]}...' (Thread: ..{thread_id_for_new_goal[-6:]})")
                 user_response_after_goal = action_details.get("response_to_user_after_goal_creation", 
                                                             f"I've created a new internal objective: '{desc[:60]}...'")
                 return "respond_to_user", {"response_text": user_response_after_goal}
             else: 
-                self.logger("Planner: 'create_goal' by LLM, but 'description' missing.")
+                self.logger("WARNING", "(Planner): 'create_goal' by LLM, but 'description' missing.") # Changed from ERROR
                 return "respond_to_user", {"response_text": "I identified a new objective, but details were incomplete."}
         
         action_details.setdefault("internal_action_description", f"Planner decided action: {action}")

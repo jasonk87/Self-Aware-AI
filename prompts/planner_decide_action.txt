@@ -1,1 +1,13 @@
-Decide action.
+Your *ONLY* output MUST be a single, valid JSON object. Do not include any explanatory text or conversational phrases before or after the JSON object.
+The JSON object must conform to the following structure:
+{
+  "next_action": "ACTION_NAME_FROM_AVAILABLE_LIST",
+  "action_details": {
+    // "details specific to the action, e.g.,": {},
+    // "tool_name": "if action is execute_tool",
+    // "description": "if action is create_goal",
+    // "response_text": "if action is respond_to_user",
+    // "suggestion_decision": { "suggestion_id": "...", "action_to_take": "approve|modify|reject", ... } // if action is manage_suggestions
+  }
+}
+Choose an ACTION_NAME_FROM_AVAILABLE_LIST from the provided list of available actions.
