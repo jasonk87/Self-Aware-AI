@@ -15,19 +15,27 @@ from speech_recognition import Recognizer
 from typing import Optional
 import ai_core # Make sure ai_core is imported
 import os # For os.path.join
-from logger_utils import log # Added import
+# from logger_utils import log # Added import - REMOVED
+import logging # New import
+
+from logging_config import setup_logging # New import
+
+# Call the setup function as early as possible
+setup_logging()
 
 # --- Section 1: Initial Setup, AICore Initialization, and GoalWorker Acquisition ---
 # --- Global Variables for Core Components & Logger ---
 # These will hold functional components if AICore initializes successfully.
+logger = logging.getLogger(__name__) # New module-level logger
+
 ai_core_singleton_instance = None
-ai_core_logger_func = None
+# ai_core_logger_func = None # REMOVED - AICore has its own logger
 MODEL_NAME_CONSOLE = "N/A (ai_core_not_loaded)" # Default
 version_module_console = "N/A" # Default
 goal_worker_instance_ref: threading.Thread | None = None # Will hold the GoalWorker instance from AICore
-log_to_console_logger: callable = lambda lvl, msg: print(f"[{lvl.upper()}_CONSOLE_PRE_INIT_LOG] {msg}", file=sys.stderr if lvl.upper() in ["ERROR", "CRITICAL"] else sys.stdout) # Basic pre-init logger
+# log_to_console_logger: callable = lambda lvl, msg: print(f"[{lvl.upper()}_CONSOLE_PRE_INIT_LOG] {msg}", file=sys.stderr if lvl.upper() in ["ERROR", "CRITICAL"] else sys.stdout) # Basic pre-init logger - REMOVED
 response_queue_console = queue.Queue() # Fallback queue
-log_message_queue_console = queue.Queue() # Fallback queue, primarily for ai_core to put messages if console were to read them.
+# log_message_queue_console = queue.Queue() # REMOVED
 AI_CORE_MODEL_NAME_CONSOLE = "N/A (ai_core_not_loaded)"
 get_response_async_console_func = None # Fallback for the main async function
 
@@ -35,8 +43,8 @@ get_response_async_console_func = None # Fallback for the main async function
 try:
     from notifier_module import init_versioning, get_current_version, LAST_UPDATE_FLAG_FILE as NOTIFIER_LAST_UPDATE_FLAG
 except ImportError:
-    log_to_console_logger("CRITICAL", "(console_ai) notifier_module.py not found. Versioning/update features disabled.")
-    def init_versioning(): log_to_console_logger("WARNING", "(console_ai_fallback) init_versioning called, notifier_module missing.")
+    logger.critical("(console_ai) notifier_module.py not found. Versioning/update features disabled.")
+    def init_versioning(): logger.warning("(console_ai_fallback) init_versioning called, notifier_module missing.")
     def get_current_version(): return "N/A (notifier_module missing)"
     NOTIFIER_LAST_UPDATE_FLAG = os.path.join("meta", "last_update_fallback_console.json")
 
@@ -46,65 +54,60 @@ try:
     # might eventually route through ai_core_singleton_instance.prompt_manager.
     # This is a deeper refactoring consideration beyond the current scope.
 except ImportError:
-    log_to_console_logger("CRITICAL", "(console_ai) prompt_manager.py not found. Prompt commands (/prompt, /update_prompt, /reflect) disabled.")
-    def load_prompt(): log_to_console_logger("ERROR", "(console_ai_fallback) load_prompt: prompt_manager missing."); return "Fallback Prompt: Prompt manager missing."
-    def update_prompt(p): log_to_console_logger("ERROR", "(console_ai_fallback) update_prompt: prompt_manager missing.")
-    def auto_update_prompt(): log_to_console_logger("ERROR", "(console_ai_fallback) auto_update_prompt: prompt_manager missing.")
+    logger.critical("(console_ai) prompt_manager.py not found. Prompt commands (/prompt, /update_prompt, /reflect) disabled.")
+    def load_prompt(): logger.error("(console_ai_fallback) load_prompt: prompt_manager missing."); return "Fallback Prompt: Prompt manager missing."
+    def update_prompt(p): logger.error("(console_ai_fallback) update_prompt: prompt_manager missing.")
+    def auto_update_prompt(): logger.error("(console_ai_fallback) auto_update_prompt: prompt_manager missing.")
 
 # --- Attempt to Import and Initialize AI Core ---
 BASE_DIR_CONSOLE = os.path.dirname(os.path.abspath(__file__))
 try:
     # Import necessary functions and variables from ai_core
-    # We no longer need to import _ai_core_instance_singleton directly for initialization checking
     from ai_core import (
         initialize_ai_core_singleton,
-        log_background_message as ai_core_logger_func_ref, # Use a distinct name for the imported logger
+        # log_background_message as ai_core_logger_func_ref, # REMOVED
         response_queue as ai_core_response_queue,
-        log_message_queue as ai_core_log_message_queue,
-        MODEL_NAME as AI_CORE_MODEL_NAME_FROM_MODULE_DEFAULT, # Get default model name
-        get_response_async as ai_core_get_response_async_ref # Use a distinct name
+        # log_message_queue as ai_core_log_message_queue, # REMOVED
+        MODEL_NAME as AI_CORE_MODEL_NAME_FROM_MODULE_DEFAULT,
+        get_response_async as ai_core_get_response_async_ref
     )
 
     # Call initialize_ai_core_singleton and directly assign its return value
+    # logger_override is removed from initialize_ai_core_singleton
     ai_core_singleton_instance = initialize_ai_core_singleton(
-        config_file=os.path.join(BASE_DIR_CONSOLE, "config.json"), # Make sure BASE_DIR_CONSOLE is defined
-        logger_override=log_to_console_logger # Pass the console's pre-init logger
+        config_file=os.path.join(BASE_DIR_CONSOLE, "config.json")
     )
 
     if ai_core_singleton_instance:
         # AICore instance was successfully obtained
-        log_to_console_logger = ai_core_singleton_instance.logger # Switch to using AICore's own logger instance
-        response_queue_console = ai_core_response_queue # Use queues from ai_core
-        log_message_queue_console = ai_core_log_message_queue
+        # log_to_console_logger = ai_core_singleton_instance.logger # REMOVED - console_ai uses its own logger
+        response_queue_console = ai_core_response_queue
+        # log_message_queue_console = ai_core_log_message_queue # REMOVED
         
-        # Get model name and version from the instance itself
         AI_CORE_MODEL_NAME_CONSOLE = getattr(ai_core_singleton_instance, 'current_llm_model', AI_CORE_MODEL_NAME_FROM_MODULE_DEFAULT)
         version_module_console = getattr(ai_core_singleton_instance, 'version', 'N/A (from instance)')
         
-        get_response_async_console_func = ai_core_get_response_async_ref # Use the imported async function reference
+        get_response_async_console_func = ai_core_get_response_async_ref
 
-        log_to_console_logger("INFO", "(console_ai) AICore singleton instance obtained and configured. Switched to AICore logger.")
+        logger.info("(console_ai) AICore singleton instance obtained and configured.")
 
-        # Obtain the GoalWorker instance from the initialized AICore singleton
         if hasattr(ai_core_singleton_instance, 'goal_worker') and ai_core_singleton_instance.goal_worker is not None:
             goal_worker_instance_ref = ai_core_singleton_instance.goal_worker
-            log_to_console_logger("INFO", "(console_ai) Successfully obtained GoalWorker instance from AICore.")
+            logger.info("(console_ai) Successfully obtained GoalWorker instance from AICore.")
         else:
-            log_to_console_logger("CRITICAL", "(console_ai) AICore initialized, but its GoalWorker instance is missing or None. Background processing will be disabled.")
+            logger.critical("(console_ai) AICore initialized, but its GoalWorker instance is missing or None. Background processing will be disabled.")
             goal_worker_instance_ref = None
     else:
-        # This means initialize_ai_core_singleton() returned None
-        log_to_console_logger("CRITICAL", "(console_ai) Failed to obtain AICore singleton instance (initialize_ai_core_singleton returned None). AI Core functionalities will be unavailable.")
+        logger.critical("(console_ai) Failed to obtain AICore singleton instance (initialize_ai_core_singleton returned None). AI Core functionalities will be unavailable.")
         goal_worker_instance_ref = None
-        # Keep ai_core_singleton_instance as None; other globals retain their initial fallbacks
 
 except ImportError as e_ai_core_import:
-    log_to_console_logger("CRITICAL", f"(console_ai) FATAL: Failed to import from ai_core.py: {e_ai_core_import}. Core AI functionalities disabled.")
-    ai_core_singleton_instance = None # Ensure it's None
+    logger.critical(f"(console_ai) FATAL: Failed to import from ai_core.py: {e_ai_core_import}. Core AI functionalities disabled.")
+    ai_core_singleton_instance = None
     goal_worker_instance_ref = None
 except Exception as e_aicore_general_init:
-    log_to_console_logger("CRITICAL", f"(console_ai) FATAL: An unexpected error occurred during AICore initialization phase: {e_aicore_general_init}\n{traceback.format_exc()}")
-    ai_core_singleton_instance = None # Ensure it's None
+    logger.critical(f"(console_ai) FATAL: An unexpected error occurred during AICore initialization phase: {e_aicore_general_init}\n{traceback.format_exc()}")
+    ai_core_singleton_instance = None
     goal_worker_instance_ref = None
 
 
@@ -112,10 +115,10 @@ try:
     # For console UI commands like /suggestions, /approve, /reject
     from suggestion_engine import load_suggestions as load_suggestions_console, save_suggestions as save_suggestions_console, init_suggestions_file as init_suggestions_file_console
 except ImportError:
-    log_to_console_logger("ERROR", "(console_ai) suggestion_engine.py not found. Suggestion commands disabled.")
-    def load_suggestions_console(): log_to_console_logger("ERROR", "(console_ai_fallback) load_suggestions_console: suggestion_engine missing."); return []
-    def save_suggestions_console(s): log_to_console_logger("ERROR", "(console_ai_fallback) save_suggestions_console: suggestion_engine missing.")
-    def init_suggestions_file_console(): log_to_console_logger("WARNING", "(console_ai_fallback) init_suggestions_file_console: suggestion_engine missing.")
+    logger.error("(console_ai) suggestion_engine.py not found. Suggestion commands disabled.")
+    def load_suggestions_console(): logger.error("(console_ai_fallback) load_suggestions_console: suggestion_engine missing."); return []
+    def save_suggestions_console(s): logger.error("(console_ai_fallback) save_suggestions_console: suggestion_engine missing.")
+    def init_suggestions_file_console(): logger.warning("(console_ai_fallback) init_suggestions_file_console: suggestion_engine missing.")
 
 # For voice (optional dependencies)
 try:
@@ -173,8 +176,7 @@ def _ensure_meta_dir_console():
     try:
         os.makedirs(META_DIR, exist_ok=True)
     except OSError as e:
-        # Use the console's unified logger, established in Section 1
-        log_to_console_logger("ERROR", f"(console_ai_ensure_meta) Could not create meta directory '{META_DIR}': {e}")
+        logger.error(f"(console_ai_ensure_meta) Could not create meta directory '{META_DIR}': {e}")
 
 def color_text(text: str, color_code) -> str:
     """Applies color to text if COLOR_ENABLED."""
@@ -207,7 +209,7 @@ def format_timestamp_console(ts_input: str | int | float | None) -> str:
                 try:
                     dt_obj = datetime.strptime(ts_input.split('.')[0], "%Y-%m-%dT%H:%M:%S")
                 except ValueError:
-                    log_to_console_logger("DEBUG", f"(format_timestamp_console) Could not parse string timestamp '{ts_input}' with known ISO formats.")
+                    logger.debug(f"(format_timestamp_console) Could not parse string timestamp '{ts_input}' with known ISO formats.")
                     pass # Could not parse with common ISO variants
             if dt_obj:
                 if dt_obj.tzinfo: # If the datetime object is timezone-aware
@@ -217,7 +219,7 @@ def format_timestamp_console(ts_input: str | int | float | None) -> str:
             dt_obj = datetime.fromtimestamp(ts_input)
             return dt_obj.strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e: # Broad exception to catch any parsing/formatting errors
-        log_to_console_logger("WARNING", f"(format_timestamp_console) Error formatting timestamp '{ts_input}': {e}")
+        logger.warning(f"(format_timestamp_console) Error formatting timestamp '{ts_input}': {e}")
         return str(ts_input) # Fallback to string representation of input
     return str(ts_input) # Default fallback if no conversion happened
 
@@ -226,7 +228,7 @@ def add_turn_to_history(thread_id: str, speaker: str, text: str):
     # conversation_histories, MAX_CONVERSATION_HISTORY_TURNS are globals from Section 1
     global conversation_histories, MAX_CONVERSATION_HISTORY_TURNS
     if not thread_id:
-        log_to_console_logger("WARNING", "(console_ai_history) Attempted to add turn without a valid thread_id.")
+        logger.warning("(console_ai_history) Attempted to add turn without a valid thread_id.")
         return
 
     if thread_id not in conversation_histories:
@@ -266,7 +268,7 @@ def log_conversation_snippet_for_review(thread_id: str):
     global conversation_histories, CONVERSATION_REVIEW_LOG_FILE, MAX_CONVERSATION_LOG_ENTRIES, MAX_SNIPPET_TURNS, MAX_SNIPPET_TEXT_LEN
 
     if not thread_id or thread_id not in conversation_histories or not conversation_histories[thread_id]:
-        log_to_console_logger("DEBUG", f"(log_snippet) No history for thread_id '{thread_id}' or history empty. Skipping log.")
+        logger.debug(f"(log_snippet) No history for thread_id '{thread_id}' or history empty. Skipping log.")
         return
 
     _ensure_meta_dir_console() # Ensure meta directory exists
@@ -280,10 +282,10 @@ def log_conversation_snippet_for_review(thread_id: str):
                     if isinstance(loaded_entries, list): # Ensure it's a list
                         review_log_entries = loaded_entries
                     else:
-                        log_to_console_logger("WARNING", f"(log_snippet) Content of '{CONVERSATION_REVIEW_LOG_FILE}' is not a list. Starting fresh.")
+                        logger.warning(f"(log_snippet) Content of '{CONVERSATION_REVIEW_LOG_FILE}' is not a list. Starting fresh.")
                         review_log_entries = [] # Reset if not a list
         except (json.JSONDecodeError, IOError) as e:
-            log_to_console_logger("WARNING", f"(log_snippet) Error reading conversation review log '{CONVERSATION_REVIEW_LOG_FILE}': {e}. Starting fresh.")
+            logger.warning(f"(log_snippet) Error reading conversation review log '{CONVERSATION_REVIEW_LOG_FILE}': {e}. Starting fresh.")
             review_log_entries = []
 
     # Get the relevant turns for the snippet
@@ -292,7 +294,7 @@ def log_conversation_snippet_for_review(thread_id: str):
     turns_to_log_for_snippet = current_thread_history[-MAX_SNIPPET_TURNS:] # Get last N turns
 
     if not turns_to_log_for_snippet: # Don't log if there's no relevant history section for the snippet
-        log_to_console_logger("DEBUG", f"(log_snippet) No turns to log for snippet from thread '{thread_id}'.")
+        logger.debug(f"(log_snippet) No turns to log for snippet from thread '{thread_id}'.")
         return
 
     snippet_entry = {
@@ -318,7 +320,7 @@ def log_conversation_snippet_for_review(thread_id: str):
         with open(CONVERSATION_REVIEW_LOG_FILE, "w", encoding="utf-8") as f:
             json.dump(review_log_entries, f, indent=2)
     except IOError as e:
-        log_to_console_logger("ERROR", f"(log_snippet) Could not write to conversation review log '{CONVERSATION_REVIEW_LOG_FILE}': {e}")
+        logger.error(f"(log_snippet) Could not write to conversation review log '{CONVERSATION_REVIEW_LOG_FILE}': {e}")
 
 def print_and_restore_prompt(message_to_print: str, is_stream_chunk: bool = False, stream_id: str | None = None, is_final_stream_chunk: bool = False):
     """Handles printing messages to the console while preserving and restoring the user's partial input line."""
@@ -369,7 +371,7 @@ def load_goals_for_console() -> list:
             loaded_goals = json.loads(content)
             for goal in loaded_goals: # Ensure essential fields for display/sorting
                 if not isinstance(goal, dict):
-                    log_to_console_logger("WARNING", f"(load_goals_console) Skipping non-dictionary item in '{GOAL_FILE_CONSOLE}': {str(goal)[:100]}")
+                    logger.warning(f"(load_goals_console) Skipping non-dictionary item in '{GOAL_FILE_CONSOLE}': {str(goal)[:100]}")
                     continue # Skip non-dict items if file is partially corrupt
                 goal.setdefault("priority", CONSOLE_PRIORITY_NORMAL)
                 goal.setdefault("thread_id", goal.get("thread_id", "N/A_" + str(uuid.uuid4())[:8]))
@@ -378,11 +380,11 @@ def load_goals_for_console() -> list:
                 goal.setdefault("status", goal.get("status", "pending"))
             return loaded_goals
     except (json.JSONDecodeError, FileNotFoundError) as e: # FileNotFoundError can happen if file deleted between check and open
-        log_to_console_logger("WARNING", f"(load_goals_console) Error loading goals file '{GOAL_FILE_CONSOLE}': {e}")
+        logger.warning(f"(load_goals_console) Error loading goals file '{GOAL_FILE_CONSOLE}': {e}")
         print_and_restore_prompt(color_text(f"Warning: Error loading goals for display: {e}", Fore.YELLOW))
         return []
     except Exception as e_load: # Catch other unexpected errors
-        log_to_console_logger("ERROR", f"(load_goals_console) Unexpected error loading goals from '{GOAL_FILE_CONSOLE}': {e_load}\n{traceback.format_exc()}")
+        logger.error(f"(load_goals_console) Unexpected error loading goals from '{GOAL_FILE_CONSOLE}': {e_load}\n{traceback.format_exc()}")
         print_and_restore_prompt(color_text(f"Critical Warning: Unexpected error loading goals: {e_load}\n{traceback.format_exc()}", Fore.RED))
         return []
 
@@ -416,11 +418,11 @@ def add_goal_via_console(
         parent_obj = next((g for g in current_goals if isinstance(g, dict) and g.get("goal_id") == parent_goal_id_to_relate), None)
         if parent_obj:
             effective_thread_id = parent_obj.get("thread_id")
-            log_to_console_logger("DEBUG", f"(add_goal_console) Inherited thread_id '..{str(effective_thread_id)[-6:]}' from parent goal '..{parent_goal_id_to_relate[-6:]}'.")
+            logger.debug(f"(add_goal_console) Inherited thread_id '..{str(effective_thread_id)[-6:]}' from parent goal '..{parent_goal_id_to_relate[-6:]}'.")
     # If still no thread_id (e.g. new goal, or parent had no thread_id), create a new one
     if not effective_thread_id:
         effective_thread_id = str(uuid.uuid4())
-        log_to_console_logger("DEBUG", f"(add_goal_console) Generated new thread_id '..{effective_thread_id[-6:]}' for new goal.")
+        logger.debug(f"(add_goal_console) Generated new thread_id '..{effective_thread_id[-6:]}' for new goal.")
     
     timestamp_now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z") # Ensure 'Z' for UTC
     
@@ -445,13 +447,13 @@ def add_goal_via_console(
         for g in current_goals
     )
     if is_dup:
-        log_to_console_logger("INFO", f"(add_goal_console) Duplicate pending goal addition attempted for thread ..{effective_thread_id[-6:]}: '{goal_text.strip()[:60]}...'")
+        logger.info(f"(add_goal_console) Duplicate pending goal addition attempted for thread ..{effective_thread_id[-6:]}: '{goal_text.strip()[:60]}...'")
         print_and_restore_prompt(color_text(f"Note: A similar pending goal already exists in thread ..{effective_thread_id[-6:]}: '{goal_text[:60]}...'", Fore.YELLOW))
         # Current logic appends anyway. If this should prevent adding, add 'return' here.
     
     current_goals.append(new_goal_obj)
     save_goals_for_console(current_goals)
-    log_to_console_logger("INFO", f"(add_goal_console) Goal added. ID: ..{new_goal_id[-6:]}, Thread: ..{effective_thread_id[-6:]}, Prio: {priority}, Goal: '{goal_text.strip()[:60]}...'")
+    logger.info(f"(add_goal_console) Goal added. ID: ..{new_goal_id[-6:]}, Thread: ..{effective_thread_id[-6:]}, Prio: {priority}, Goal: '{goal_text.strip()[:60]}...'")
 
 
 def load_changelog_for_console() -> list:
@@ -465,14 +467,14 @@ def load_changelog_for_console() -> list:
             if not content.strip(): return []
             loaded_changelog = json.loads(content)
             if not isinstance(loaded_changelog, list):
-                log_to_console_logger("ERROR", f"(load_changelog_console) Content of '{CHANGELOG_FILE_CONSOLE}' is not a list. Returning empty.")
+                logger.error(f"(load_changelog_console) Content of '{CHANGELOG_FILE_CONSOLE}' is not a list. Returning empty.")
                 return []
             return loaded_changelog
     except (json.JSONDecodeError, FileNotFoundError) as e:
-        log_to_console_logger("WARNING", f"(load_changelog_console) Error loading changelog file '{CHANGELOG_FILE_CONSOLE}': {e}")
+        logger.warning(f"(load_changelog_console) Error loading changelog file '{CHANGELOG_FILE_CONSOLE}': {e}")
         return [] # Return empty on error
     except Exception as e_load_cl:
-        log_to_console_logger("ERROR", f"(load_changelog_console) Unexpected error loading changelog from '{CHANGELOG_FILE_CONSOLE}': {e_load_cl}\n{traceback.format_exc()}")
+        logger.error(f"(load_changelog_console) Unexpected error loading changelog from '{CHANGELOG_FILE_CONSOLE}': {e_load_cl}\n{traceback.format_exc()}")
         return []
 
 
@@ -497,11 +499,11 @@ def parse_indices_from_command(arg_str: str) -> list[int]:
                 else:
                     msg_range_err = f"Warning: Invalid range '{start_str}-{end_str}'. Numbers must be positive and start <= end."
                     print_and_restore_prompt(color_text(msg_range_err, Fore.YELLOW))
-                    log_to_console_logger("DEBUG", f"(parse_indices) {msg_range_err}")
+                    logger.debug(f"(parse_indices) {msg_range_err}")
             except ValueError: # If int() conversion fails
                 msg_val_err = f"Warning: Invalid range format '{part}'. Use numbers like '1-3'."
                 print_and_restore_prompt(color_text(msg_val_err, Fore.YELLOW))
-                log_to_console_logger("DEBUG", f"(parse_indices) {msg_val_err}")
+                logger.debug(f"(parse_indices) {msg_val_err}")
         elif part.isdigit(): # Handle single numbers
             val = int(part)
             if val > 0: # Ensure 1-based index from user is positive
@@ -509,15 +511,15 @@ def parse_indices_from_command(arg_str: str) -> list[int]:
             else:
                 msg_num_err = f"Warning: Invalid number '{part}'. Must be positive."
                 print_and_restore_prompt(color_text(msg_num_err, Fore.YELLOW))
-                log_to_console_logger("DEBUG", f"(parse_indices) {msg_num_err}")
+                logger.debug(f"(parse_indices) {msg_num_err}")
             # ValueError should not happen if part.isdigit() is true, but as a safeguard
             # msg_digit_err = f"Warning: Invalid number format '{part}' despite isdigit() check."
             # print_and_restore_prompt(color_text(msg_digit_err, Fore.RED)) # More severe if logic fails
-            # log_to_console_logger("ERROR", f"(parse_indices) {msg_digit_err}")
+            # logger.error(f"(parse_indices) {msg_digit_err}")
         else: # Not a range, not a digit
             msg_fmt_err = f"Warning: Invalid format '{part}'. Use numbers or ranges like '1,2-4'."
             print_and_restore_prompt(color_text(msg_fmt_err, Fore.YELLOW))
-            log_to_console_logger("DEBUG", f"(parse_indices) {msg_fmt_err}")
+            logger.debug(f"(parse_indices) {msg_fmt_err}")
             
     return sorted(list(indices))
 
@@ -543,8 +545,8 @@ def is_status_or_greeting_query(text: str) -> bool:
 # --- Section 3: Main Console Loop Function ---
 def main_console_loop() -> None:
     # Global variables used in this loop, established in Section 1 or earlier in this function
-    global partial_input, active_ai_streams, VOICE_ENABLED, last_ai_interaction_thread_id 
-    # goal_worker_instance_ref, log_to_console_logger, response_queue_console,
+    global partial_input, active_ai_streams, VOICE_ENABLED, last_ai_interaction_thread_id
+    # goal_worker_instance_ref, response_queue_console,
     # AI_CORE_MODEL_NAME_CONSOLE, get_response_async_console_func,
     # init_versioning, get_current_version, NOTIFIER_LAST_UPDATE_FLAG,
     # load_prompt, update_prompt, auto_update_prompt,
@@ -558,9 +560,10 @@ def main_console_loop() -> None:
             recognizer = sr.Recognizer()
         except Exception as e_voice_init:
             err_msg_voice = f"ERROR initializing voice recognition: {e_voice_init}. Voice commands disabled."
-            log_to_console_logger("ERROR", f"(console_ai) {err_msg_voice}")
+            logger.error(f"(console_ai) {err_msg_voice}")
             # Direct print as this is early in console setup
-            log("ERROR", color_text(err_msg_voice, Fore.RED))
+            # log("ERROR", color_text(err_msg_voice, Fore.RED)) # Old log
+            print(color_text(err_msg_voice, Fore.RED)) # Using print for very early critical errors
             VOICE_ENABLED = False
     else: # If sr is None because import failed
         VOICE_ENABLED = False
@@ -590,23 +593,23 @@ def main_console_loop() -> None:
         # --- Start Goal Worker Thread ---
         if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'start_worker'):
             try:
-                log_to_console_logger("INFO", "(console_ai) Attempting to start GoalWorker thread...")
+                logger.info("(console_ai) Attempting to start GoalWorker thread...")
                 worker_thread_instance = goal_worker_instance_ref.start_worker()
                 if worker_thread_instance and worker_thread_instance.is_alive():
-                    log_to_console_logger("INFO", "(console_ai) GoalWorker thread started successfully.")
+                    logger.info("(console_ai) GoalWorker thread started successfully.")
                 else:
                     msg = "GoalWorker start_worker() did not return an active thread. Background processing may be non-functional."
-                    log_to_console_logger("CRITICAL", f"(console_ai) {msg}")
+                    logger.critical(f"(console_ai) {msg}")
                     print_and_restore_prompt(color_text(f"CRITICAL: {msg} Check logs.", Fore.RED))
                     worker_thread_instance = None
             except Exception as e_worker_start:
                 msg = f"Exception starting GoalWorker: {e_worker_start}"
-                log_to_console_logger("CRITICAL", f"(console_ai) {msg}\n{traceback.format_exc()}")
+                logger.critical(f"(console_ai) {msg}\n{traceback.format_exc()}")
                 print_and_restore_prompt(color_text(f"CRITICAL ERROR starting GoalWorker: {e_worker_start}. Background processing disabled.", Fore.RED))
                 worker_thread_instance = None
         else:
             msg = "GoalWorker instance not available or lacks start_worker method (AICore init failed or GoalWorker component issue). Background processing disabled."
-            log_to_console_logger("CRITICAL", f"(console_ai) {msg}")
+            logger.critical(f"(console_ai) {msg}")
             if goal_worker_instance_ref is None: # Only print to console if it's a major setup failure
                  print_and_restore_prompt(color_text(f"CRITICAL: {msg} Console functionality severely limited.", Fore.RED))
             # worker_thread_instance remains None
@@ -643,32 +646,32 @@ def main_console_loop() -> None:
                     except queue.Empty: break
                     except Exception as e_resp_q_item:
                         err_msg = f"Error processing item from response_queue: {e_resp_q_item}"
-                        log_to_console_logger("ERROR", f"(console_ai) {err_msg}\n{traceback.format_exc()}")
+                        logger.error(f"(console_ai) {err_msg}\n{traceback.format_exc()}")
                         print_and_restore_prompt(color_text(err_msg, Fore.RED))
                         if 'stream_id_val' in locals() and stream_id_val in active_ai_streams: del active_ai_streams[stream_id_val]
                         try: response_queue_console.task_done() # Attempt task_done even on error if item was fetched
                         except ValueError: pass # If called too many times
             except Exception as e_outer_resp_q:
-                 log_to_console_logger("CRITICAL", f"(console_ai) Outer error with response_queue processing: {e_outer_resp_q}\n{traceback.format_exc()}")
+                 logger.critical(f"(console_ai) Outer error with response_queue processing: {e_outer_resp_q}\n{traceback.format_exc()}")
 
             # --- Process System Update Notifications ---
             if os.path.exists(NOTIFIER_LAST_UPDATE_FLAG): # NOTIFIER_LAST_UPDATE_FLAG from Section 1
                 try:
                     with open(NOTIFIER_LAST_UPDATE_FLAG, "r", encoding="utf-8") as f_upd: note_data = json.load(f_upd)
                     update_msg = f"🆕 System Update → v{note_data.get('version', 'N/A')}: {note_data.get('summary', 'N/A')}"
-                    log_to_console_logger("INFO", f"(console_ai) Displaying system update: {update_msg}")
+                    logger.info(f"(console_ai) Displaying system update: {update_msg}")
                     print_and_restore_prompt(update_msg)
                     os.remove(NOTIFIER_LAST_UPDATE_FLAG)
                     processed_async_message_this_iteration = True
                 except FileNotFoundError:
-                    log_to_console_logger("WARNING", f"(console_ai) Update flag {NOTIFIER_LAST_UPDATE_FLAG} gone before read.")
+                    logger.warning(f"(console_ai) Update flag {NOTIFIER_LAST_UPDATE_FLAG} gone before read.")
                 except json.JSONDecodeError as e_json_flag:
-                    log_to_console_logger("ERROR", f"(console_ai) Error decoding update flag {NOTIFIER_LAST_UPDATE_FLAG}: {e_json_flag}")
+                    logger.error(f"(console_ai) Error decoding update flag {NOTIFIER_LAST_UPDATE_FLAG}: {e_json_flag}")
                     print_and_restore_prompt(color_text("Error reading update notification: Malformed data.", Fore.RED))
                     try: os.remove(NOTIFIER_LAST_UPDATE_FLAG) # Attempt to remove corrupted flag
-                    except Exception as e_rem_flag: log_to_console_logger("ERROR", f"(console_ai) Could not remove corrupted update flag: {e_rem_flag}")
+                    except Exception as e_rem_flag: logger.error(f"(console_ai) Could not remove corrupted update flag: {e_rem_flag}")
                 except Exception as e_flag:
-                    log_to_console_logger("ERROR", f"(console_ai) Error processing update flag {NOTIFIER_LAST_UPDATE_FLAG}: {e_flag}\n{traceback.format_exc()}")
+                    logger.error(f"(console_ai) Error processing update flag {NOTIFIER_LAST_UPDATE_FLAG}: {e_flag}\n{traceback.format_exc()}")
                     print_and_restore_prompt(color_text(f"Error processing update flag: {e_flag}", Fore.RED))
             
             if processed_async_message_this_iteration: last_activity_time = time.time()
@@ -683,19 +686,19 @@ def main_console_loop() -> None:
                 # However, to match the original structure, we will call set_pause(False).
                 if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'set_pause'):
                     try:
-                        log_to_console_logger("DEBUG", "(console_ai) Ensuring GoalWorker is not paused for voice input listening.")
+                        logger.debug("(console_ai) Ensuring GoalWorker is not paused for voice input listening.")
                         goal_worker_instance_ref.set_pause(False) # Ensure worker is running
                     except Exception as e_gw_unpause_voice:
-                        log_to_console_logger("ERROR", f"(console_ai) Error calling GoalWorker set_pause(False) for voice: {e_gw_unpause_voice}")
+                        logger.error(f"(console_ai) Error calling GoalWorker set_pause(False) for voice: {e_gw_unpause_voice}")
                 try:
                     with sr.Microphone() as source_mic:
                         try: recognizer.adjust_for_ambient_noise(source_mic, duration=0.1) # type: ignore
-                        except Exception as e_ambient: log_to_console_logger("DEBUG", f"(console_ai) Voice ambient noise adjustment failed: {e_ambient}")
+                        except Exception as e_ambient: logger.debug(f"(console_ai) Voice ambient noise adjustment failed: {e_ambient}")
                         print_and_restore_prompt(color_text("🎤 Listening... (say 'cancel voice' to stop)", Fore.CYAN))
                         audio_data = recognizer.listen(source_mic, timeout=5, phrase_time_limit=10) # type: ignore
                     print_and_restore_prompt(color_text("🎤 Recognizing...", Fore.YELLOW))
                     spoken_input_text = recognizer.recognize_google(audio_data) # type: ignore
-                    log_to_console_logger("INFO", f"(console_ai) Voice recognized: '{spoken_input_text}'")
+                    logger.info(f"(console_ai) Voice recognized: '{spoken_input_text}'")
                     print_and_restore_prompt(color_text(f"🗣️ You said: {spoken_input_text}", Fore.BLUE))
                     if spoken_input_text.lower().strip() in ["cancel voice", "stop listening", "exit voice", "nevermind voice"]:
                         user_input_to_process = None 
@@ -704,10 +707,10 @@ def main_console_loop() -> None:
                 except sr.WaitTimeoutError: pass 
                 except sr.UnknownValueError: print_and_restore_prompt(color_text("❓ Could not understand audio.", Fore.YELLOW))
                 except sr.RequestError as e_sr_req:
-                    log_to_console_logger("ERROR", f"(console_ai) Voice input: Speech service error: {e_sr_req}")
+                    logger.error(f"(console_ai) Voice input: Speech service error: {e_sr_req}")
                     print_and_restore_prompt(color_text(f"Speech service error; {e_sr_req}", Fore.RED))
                 except Exception as e_voice_gen:
-                    log_to_console_logger("ERROR", f"(console_ai) Voice input: Unexpected error: {e_voice_gen}\n{traceback.format_exc()}")
+                    logger.error(f"(console_ai) Voice input: Unexpected error: {e_voice_gen}\n{traceback.format_exc()}")
                     print_and_restore_prompt(color_text(f"Voice input error: {e_voice_gen}", Fore.RED))
                 finally:
                     voice_input_active_flag = False 
@@ -739,7 +742,7 @@ def main_console_loop() -> None:
                         partial_input += char_typed
                         sys.stdout.write(char_typed); sys.stdout.flush() # Echo printable char
                 except UnicodeDecodeError: # Should be rare now with byte check first
-                    log_to_console_logger("DEBUG", f"(console_ai) Keyboard input: UnicodeDecodeError for byte sequence: {char_typed_bytes}")
+                    logger.debug(f"(console_ai) Keyboard input: UnicodeDecodeError for byte sequence: {char_typed_bytes}")
                     pass # Ignore
 
             # --- Process Full User Input (if any from Enter or Voice) ---
@@ -747,10 +750,10 @@ def main_console_loop() -> None:
                 # Pause GoalWorker during command processing (original line 576, also 719/723 contextually)
                 if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'set_pause'):
                     try:
-                        log_to_console_logger("DEBUG", "(console_ai) Pausing GoalWorker for command/query processing.")
+                        logger.debug("(console_ai) Pausing GoalWorker for command/query processing.")
                         goal_worker_instance_ref.set_pause(True)
                     except Exception as e_gw_pause_cmd:
-                        log_to_console_logger("ERROR", f"(console_ai) Error calling GoalWorker set_pause(True) for command processing: {e_gw_pause_cmd}")
+                        logger.error(f"(console_ai) Error calling GoalWorker set_pause(True) for command processing: {e_gw_pause_cmd}")
                 
                 last_activity_time = time.time()
                 # --- Command Handlers ---
@@ -812,7 +815,7 @@ def main_console_loop() -> None:
                             if isinstance(g_con, dict) and g_con.get("thread_id","").startswith(thread_id_prefix_search):
                                 found_thread_id = g_con["thread_id"]; break
                         if not found_thread_id:
-                            log_to_console_logger("INFO", f"(console_ai) /addgoal_thread: No thread found for prefix '{thread_id_prefix_search}'. Adding to new thread.")
+                            logger.info(f"(console_ai) /addgoal_thread: No thread found for prefix '{thread_id_prefix_search}'. Adding to new thread.")
                             print_and_restore_prompt(color_text(f"No thread_id found starting with '{thread_id_prefix_search}'. Goal added to NEW thread.", Fore.YELLOW))
                             add_goal_via_console(goal_description, priority=CONSOLE_PRIORITY_NORMAL) # Helper from Sec 2
                             # add_goal_via_console logs success itself
@@ -858,13 +861,13 @@ def main_console_loop() -> None:
                                 score = goal_worker_instance_ref.executor.calculate_dynamic_score(pg_obj)
                                 scored_parent_goals.append((score, pg_obj))
                             except Exception as e_score: # Catch error if scoring fails for a goal
-                                log_to_console_logger("WARNING", f"(console_ai_/goals) Scoring failed for GID ..{pg_obj.get('goal_id','N/A')[-6:]}: {e_score}")
+                                logger.warning(f"(console_ai_/goals) Scoring failed for GID ..{pg_obj.get('goal_id','N/A')[-6:]}: {e_score}")
                                 print_and_restore_prompt(color_text(f"Warning: Could not score goal GID ..{pg_obj.get('goal_id','N/A')[-6:]} for /goals display: {e_score}", Fore.YELLOW))
                                 scored_parent_goals.append((-float('inf'), pg_obj)) # Put errored items at bottom
                         
                         sorted_active_parent_goals = [item[1] for item in sorted(scored_parent_goals, key=lambda x: x[0], reverse=True)]
                     else: # Fallback sorting if score function not available
-                         log_to_console_logger("WARNING", "(console_ai_/goals) GoalWorker executor or calculate_dynamic_score not available. Using basic sorting for /goals.")
+                         logger.warning("(console_ai_/goals) GoalWorker executor or calculate_dynamic_score not available. Using basic sorting for /goals.")
                          sorted_active_parent_goals = sorted(
                             parent_goals_display,
                             key=lambda g_item: (g_item.get("priority", CONSOLE_PRIORITY_NORMAL), g_item.get("created_at", "1970-01-01T00:00:00Z"))
@@ -952,9 +955,9 @@ def main_console_loop() -> None:
                     # Original logic: if callable(goal_worker.set_pause): goal_worker.set_pause(False)
                     if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'set_pause'):
                         try:
-                            log_to_console_logger("DEBUG","(console_ai_/update_prompt) Ensuring GoalWorker is running for multiline input.")
+                            logger.debug("(console_ai_/update_prompt) Ensuring GoalWorker is running for multiline input.")
                             goal_worker_instance_ref.set_pause(False)
-                        except Exception as e_gw_unpause_prompt: log_to_console_logger("ERROR", f"(console_ai_/update_prompt) Error unpausing GoalWorker: {e_gw_unpause_prompt}")
+                        except Exception as e_gw_unpause_prompt: logger.error(f"(console_ai_/update_prompt) Error unpausing GoalWorker: {e_gw_unpause_prompt}")
                     
                     new_prompt_lines = []
                     try:
@@ -985,9 +988,9 @@ def main_console_loop() -> None:
                     # Re-pause worker after multiline input session (matches the pause at start of command block)
                     if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'set_pause'):
                         try:
-                            log_to_console_logger("DEBUG", "(console_ai_/update_prompt) Re-pausing GoalWorker after multiline input.")
+                            logger.debug("(console_ai_/update_prompt) Re-pausing GoalWorker after multiline input.")
                             goal_worker_instance_ref.set_pause(True)
-                        except Exception as e_gw_repause_prompt: log_to_console_logger("ERROR", f"(console_ai_/update_prompt) Error re-pausing GoalWorker: {e_gw_repause_prompt}")
+                        except Exception as e_gw_repause_prompt: logger.error(f"(console_ai_/update_prompt) Error re-pausing GoalWorker: {e_gw_repause_prompt}")
 
                     if new_prompt_lines is not None:
                         new_operational_prompt = "".join(new_prompt_lines).strip()
@@ -1016,10 +1019,10 @@ def main_console_loop() -> None:
                             add_goal_via_console(evolve_goal_text, source="system_directive", priority=CONSOLE_PRIORITY_URGENT, thread_id_to_relate="SYSTEM_EVOLUTION_THREAD") # Helper from Sec 2
                             # add_goal_via_console prints its own success message.
                     except ImportError:
-                        log_to_console_logger("ERROR", "(console_ai_/evolve) mission_manager.py not found. Cannot activate /evolve.")
+                        logger.error("(console_ai_/evolve) mission_manager.py not found. Cannot activate /evolve.")
                         print_and_restore_prompt(color_text("ERROR: mission_manager.py not found. Cannot activate /evolve.", Fore.RED))
                     except Exception as e_evolve:
-                        log_to_console_logger("ERROR", f"(console_ai_/evolve) Error during /evolve: {e_evolve}\n{traceback.format_exc()}")
+                        logger.error(f"(console_ai_/evolve) Error during /evolve: {e_evolve}\n{traceback.format_exc()}")
                         print_and_restore_prompt(color_text(f"ERROR during /evolve: {e_evolve}", Fore.RED))
 
                 elif cmd_lower == "/status":
@@ -1032,10 +1035,10 @@ def main_console_loop() -> None:
                                 if content_active.strip(): # Ensure not empty
                                     active_goal_content = json.loads(content_active) # Corrected: load from content
                         except json.JSONDecodeError:
-                             log_to_console_logger("WARNING", f"(console_ai_/status) {ACTIVE_GOAL_FILE_CONSOLE} is malformed.")
+                             logger.warning(f"(console_ai_/status) {ACTIVE_GOAL_FILE_CONSOLE} is malformed.")
                              print_and_restore_prompt(color_text(f"Warning: {ACTIVE_GOAL_FILE_CONSOLE} is malformed.", Fore.YELLOW))
                         except Exception as e_ag_read:
-                            log_to_console_logger("ERROR", f"(console_ai_/status) Error reading {ACTIVE_GOAL_FILE_CONSOLE}: {e_ag_read}")
+                            logger.error(f"(console_ai_/status) Error reading {ACTIVE_GOAL_FILE_CONSOLE}: {e_ag_read}")
                             active_goal_content = {}
                     
                     status_msg_parts = [color_text("\n=== Current AI Status ===\n", Fore.CYAN)]
@@ -1053,10 +1056,10 @@ def main_console_loop() -> None:
                         try:
                             next_pending_goal_obj = goal_worker_instance_ref.executor.reprioritize_and_select_next_goal(all_goals_status_list)
                         except Exception as e_reprio:
-                            log_to_console_logger("ERROR", f"(console_ai_/status) Error calling reprioritize_and_select_next_goal: {e_reprio}")
+                            logger.error(f"(console_ai_/status) Error calling reprioritize_and_select_next_goal: {e_reprio}")
                             print_and_restore_prompt(color_text(f"Error determining next goal via executor: {e_reprio}", Fore.RED))
                     else:
-                        log_to_console_logger("WARNING", "(console_ai_/status) GoalWorker executor or reprioritize_and_select_next_goal not available. Using basic pending sort for /status.")
+                        logger.warning("(console_ai_/status) GoalWorker executor or reprioritize_and_select_next_goal not available. Using basic pending sort for /status.")
                         pending_goals_basic_sort = sorted([g for g in all_goals_status_list if isinstance(g,dict) and g.get('status')=='pending'], key=lambda x: (x.get('priority',CONSOLE_PRIORITY_NORMAL), x.get('created_at','')))
                         if pending_goals_basic_sort: next_pending_goal_obj = pending_goals_basic_sort[0]
 
@@ -1077,7 +1080,7 @@ def main_console_loop() -> None:
                             with open(LAST_REFLECTION_CONSOLE_FILE, "r", encoding='utf-8') as f_reflect: 
                                 content_reflect = f_reflect.read()
                                 if content_reflect.strip(): last_reflect_ts_val = json.load(f_reflect).get("timestamp")
-                        except Exception as e_lrf: log_to_console_logger("WARNING", f"(console_ai_/status) Error reading {LAST_REFLECTION_CONSOLE_FILE}: {e_lrf}")
+                        except Exception as e_lrf: logger.warning(f"(console_ai_/status) Error reading {LAST_REFLECTION_CONSOLE_FILE}: {e_lrf}")
                     status_msg_parts.append(f"{color_text('Last Ops Prompt Reflection:', Fore.YELLOW)} {format_timestamp_console(last_reflect_ts_val)}") # format_timestamp_console from Sec 2
                     print_and_restore_prompt("\n".join(status_msg_parts))
 
@@ -1119,7 +1122,7 @@ def main_console_loop() -> None:
                                 if unstable_tools_list_stat: stats_out_parts.append(f"  - Potentially Unstable Tools (>2 runs, >60% fail): {', '.join(unstable_tools_list_stat)}")
                         else: stats_out_parts.append(f"Tool Registry file ('{TOOL_REGISTRY_CONSOLE_FILE}') not found for stats.")
                     except Exception as e_stat_tool:
-                        log_to_console_logger("ERROR", f"(console_ai_/stats) Could not load tool stats: {e_stat_tool}")
+                        logger.error(f"(console_ai_/stats) Could not load tool stats: {e_stat_tool}")
                         stats_out_parts.append(f"Could not load tool stats: {e_stat_tool}")
 
                     suggestions_stats_list = load_suggestions_console() # load_suggestions_console from Section 1
@@ -1242,11 +1245,11 @@ def main_console_loop() -> None:
                                     score_rem = goal_worker_instance_ref.executor.calculate_dynamic_score(pg_obj_rem)
                                     scored_parent_goals_rem.append((score_rem, pg_obj_rem))
                                 except Exception as e_score_rem:
-                                    log_to_console_logger("WARNING", f"(console_ai_/removegoal) Scoring failed for GID ..{pg_obj_rem.get('goal_id','N/A')[-6:]}: {e_score_rem}"); score_rem = -float('inf')
+                                    logger.warning(f"(console_ai_/removegoal) Scoring failed for GID ..{pg_obj_rem.get('goal_id','N/A')[-6:]}: {e_score_rem}"); score_rem = -float('inf')
                                     scored_parent_goals_rem.append((-float('inf'), pg_obj_rem))
                             active_goals_for_rem_cmd = [item[1] for item in sorted(scored_parent_goals_rem, key=lambda x_rem: x_rem[0], reverse=True)]
                         else: # Fallback sorting if score function not available
-                            log_to_console_logger("WARNING", "(console_ai_/removegoal) GoalWorker executor or score func not available. Basic sort.")
+                            logger.warning("(console_ai_/removegoal) GoalWorker executor or score func not available. Basic sort.")
                             active_goals_for_rem_cmd = sorted(
                                 parent_goals_for_rem,
                                 key=lambda g_rem_item: (g_rem_item.get("priority", CONSOLE_PRIORITY_NORMAL), g_rem_item.get("created_at", ""))
@@ -1307,11 +1310,11 @@ def main_console_loop() -> None:
                                     score_recomp = goal_worker_instance_ref.executor.calculate_dynamic_score(pg_obj_recomp)
                                     active_parents_scored_recomp.append((score_recomp, pg_obj_recomp))
                                 except Exception as e_score_recomp:
-                                    log_to_console_logger("WARNING", f"(console_ai_/recompose) Scoring GID ..{pg_obj_recomp.get('goal_id','N/A')[-6:]} failed: {e_score_recomp}"); score_recomp = -float('inf')
+                                    logger.warning(f"(console_ai_/recompose) Scoring GID ..{pg_obj_recomp.get('goal_id','N/A')[-6:]} failed: {e_score_recomp}"); score_recomp = -float('inf')
                                     active_parents_scored_recomp.append((-float('inf'), pg_obj_recomp))
                             sorted_active_parents_recomp = [item[1] for item in sorted(active_parents_scored_recomp, key=lambda x_p: x_p[0], reverse=True)]
                         else: # Fallback sorting
-                             log_to_console_logger("WARNING","(console_ai_/recompose) GoalWorker executor or score func not available. Basic sort.")
+                             logger.warning("(console_ai_/recompose) GoalWorker executor or score func not available. Basic sort.")
                              sorted_active_parents_recomp = sorted(
                                  active_parent_candidates_recomp, 
                                  key=lambda g_rec_p_item: (g_rec_p_item.get("priority", CONSOLE_PRIORITY_NORMAL), g_rec_p_item.get("created_at", ""))
@@ -1391,8 +1394,8 @@ def main_console_loop() -> None:
                 elif not cmd_lower.startswith("/"): # Default: Not a known command, treat as input for AI
                     # Determine current_interaction_thread_id
                     current_interaction_thread_id = last_ai_interaction_thread_id if last_ai_interaction_thread_id and not partial_input else str(uuid.uuid4())
-                    if current_interaction_thread_id == last_ai_interaction_thread_id: log_to_console_logger("DEBUG", f"(console_ai) Continuing conversation on thread ..{current_interaction_thread_id[-6:]}")
-                    else: log_to_console_logger("DEBUG", f"(console_ai) Starting new conversation on thread ..{current_interaction_thread_id[-6:]}")
+                    if current_interaction_thread_id == last_ai_interaction_thread_id: logger.debug(f"(console_ai) Continuing conversation on thread ..{current_interaction_thread_id[-6:]}")
+                    else: logger.debug(f"(console_ai) Starting new conversation on thread ..{current_interaction_thread_id[-6:]}")
                     
                     add_turn_to_history(current_interaction_thread_id, "User", user_input_to_process) # Helper from Sec 2
                     history_for_prompt = get_formatted_history(current_interaction_thread_id) # Helper from Sec 2
@@ -1405,7 +1408,7 @@ def main_console_loop() -> None:
                             try:
                                 with open(ACTIVE_GOAL_FILE_CONSOLE, "r", encoding='utf-8') as f_stat_llm: content_active_stat = f_stat_llm.read()
                                 if content_active_stat.strip(): active_g_content_stat_llm = json.loads(content_active_stat)
-                            except Exception as e_stat_load: log_to_console_logger("WARNING", f"(console_ai) Error loading active goal for status query: {e_stat_load}")
+                            except Exception as e_stat_load: logger.warning(f"(console_ai) Error loading active goal for status query: {e_stat_load}")
                         status_context_llm = f"\n### System Status Context (for your information) ###\n- Active worker goal: {str(active_g_content_stat_llm.get('goal','None'))[:70]}\n"
                         all_g_ctx_query = load_goals_for_console() # Helper from Sec 2
                         pending_g_ctx_count = len([g for g in all_g_ctx_query if isinstance(g,dict) and g.get("status") == "pending"])
@@ -1413,7 +1416,7 @@ def main_console_loop() -> None:
                         final_prompt_for_status_query = f"{prompt_payload_to_ai_core}{status_context_llm}"
                         if get_response_async_console_func: # get_response_async_console_func from Sec 1
                             get_response_async_console_func(user_input_to_process, prompt_payload_to_ai_core, thread_id=current_interaction_thread_id)
-                        else: log_to_console_logger("ERROR", "(console_ai) get_response_async function not available (AICore issue). Cannot process query.")
+                        else: logger.error("(console_ai) get_response_async function not available (AICore issue). Cannot process query.")
                     else: # General query or implicit goal
                         goal_keywords = ["build", "make", "create", "generate", "develop", "implement", "add", "refactor", "fix", "write", "set up", "run", "test", "deploy", "research", "find", "analyze", "update", "optimize", "search"]
                         is_likely_goal = any(cmd_lower.startswith(w) for w in goal_keywords) or ("?" not in user_input_to_process and len(user_input_to_process.split()) >= 3)
@@ -1422,17 +1425,17 @@ def main_console_loop() -> None:
                             # add_goal_via_console prints its own confirmation.
                         elif get_response_async_console_func: # General LLM query
                              get_response_async_console_func(user_input_to_process, prompt_payload_to_ai_core, thread_id=current_interaction_thread_id)
-                        else: log_to_console_logger("ERROR", "(console_ai) get_response_async function not available (AICore issue). Cannot process query.")
+                        else: logger.error("(console_ai) get_response_async function not available (AICore issue). Cannot process query.")
                 elif cmd_lower.startswith("/"): # Fallback for unknown slash commands
                     print_and_restore_prompt(color_text(f"⚠️ Unknown command: '{user_input_to_process}'. Try /help", Fore.RED))
 
                 # Unpause GoalWorker after command/query has been processed (original line 1186 context)
                 if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'set_pause'):
                     try:
-                        log_to_console_logger("DEBUG", "(console_ai) Unpausing GoalWorker after command/query processing.")
+                        logger.debug("(console_ai) Unpausing GoalWorker after command/query processing.")
                         goal_worker_instance_ref.set_pause(False)
                     except Exception as e_gw_unpause_cmd:
-                        log_to_console_logger("ERROR", f"(console_ai) Error calling GoalWorker set_pause(False) after command processing: {e_gw_unpause_cmd}")
+                        logger.error(f"(console_ai) Error calling GoalWorker set_pause(False) after command processing: {e_gw_unpause_cmd}")
             
             # --- Loop Timing ---
             loop_duration = 0.02 # Minimum loop time
@@ -1442,49 +1445,49 @@ def main_console_loop() -> None:
 
     except KeyboardInterrupt:
         if partial_input: sys.stdout.write('\n') # Ensure newline if interrupted mid-input
-        log_to_console_logger("INFO", "(console_ai) Ctrl+C detected. Exiting AI console...")
+        logger.info("(console_ai) Ctrl+C detected. Exiting AI console...")
         print(color_text("\nCtrl+C detected. Exiting AI console...", Fore.MAGENTA))
     except EOFError: 
         if partial_input: sys.stdout.write('\n')
-        log_to_console_logger("INFO", "(console_ai) EOF detected. Exiting AI console...")
+        logger.info("(console_ai) EOF detected. Exiting AI console...")
         print(color_text("\nEOF detected. Exiting AI console...", Fore.MAGENTA))
     except Exception as e_main_unhandled:
         if partial_input: sys.stdout.write('\n')
         final_err_msg_main = f"CRITICAL ERROR in console_ai main loop: {e_main_unhandled}"
-        log_to_console_logger("CRITICAL", f"(console_ai) {final_err_msg_main}\n{traceback.format_exc()}")
+        logger.critical(f"(console_ai) {final_err_msg_main}\n{traceback.format_exc()}")
         print(color_text(final_err_msg_main, Fore.RED))
         traceback.print_exc() # Print traceback to console for immediate visibility
     finally:
-        log_to_console_logger("INFO", "(console_ai) Console AI shutting down. Signaling worker...")
+        logger.info("(console_ai) Console AI shutting down. Signaling worker...")
         print("\nINFO: Console AI shutting down. Signaling worker...")
         
         # Stop the GoalWorker thread
         if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'stop') and callable(goal_worker_instance_ref.stop):
             try:
-                log_to_console_logger("INFO", "(console_ai) Calling stop() on GoalWorker instance.")
+                logger.info("(console_ai) Calling stop() on GoalWorker instance.")
                 goal_worker_instance_ref.stop()
             except Exception as e_gw_stop:
-                log_to_console_logger("ERROR", f"(console_ai) Error calling GoalWorker stop(): {e_gw_stop}")
+                logger.error(f"(console_ai) Error calling GoalWorker stop(): {e_gw_stop}")
         
         if worker_thread_instance and worker_thread_instance.is_alive():
-            log_to_console_logger("INFO", "(console_ai) Waiting for GoalWorker thread to join (max 5s)...")
+            logger.info("(console_ai) Waiting for GoalWorker thread to join (max 5s)...")
             print("INFO: Waiting for worker thread to join (max 5s)...")
             worker_thread_instance.join(timeout=5.0)
             if worker_thread_instance.is_alive():
-                log_to_console_logger("WARNING", "(console_ai) GoalWorker thread did not terminate cleanly after 5s.")
+                logger.warning("(console_ai) GoalWorker thread did not terminate cleanly after 5s.")
                 print(color_text("Warning: Worker thread did not terminate cleanly.", Fore.YELLOW))
             else:
-                log_to_console_logger("INFO", "(console_ai) GoalWorker thread joined successfully.")
+                logger.info("(console_ai) GoalWorker thread joined successfully.")
                 print("INFO: Worker thread joined successfully.")
         elif worker_thread_instance is None and goal_worker_instance_ref is not None:
-             log_to_console_logger("WARNING", "(console_ai) GoalWorker thread instance was None at shutdown, though goal_worker_instance_ref existed. Check startup logs.")
+             logger.warning("(console_ai) GoalWorker thread instance was None at shutdown, though goal_worker_instance_ref existed. Check startup logs.")
         elif goal_worker_instance_ref is None:
-            log_to_console_logger("INFO", "(console_ai) GoalWorker was not available or not started; no thread to join.")
+            logger.info("(console_ai) GoalWorker was not available or not started; no thread to join.")
         else: # worker_thread_instance existed but was not alive
-            log_to_console_logger("INFO", "(console_ai) GoalWorker thread was not active or already joined prior to shutdown sequence.")
+            logger.info("(console_ai) GoalWorker thread was not active or already joined prior to shutdown sequence.")
             print("INFO: Worker thread was not active or already joined.")
             
-        log_to_console_logger("INFO", "(console_ai) Shutdown sequence complete.")
+        logger.info("(console_ai) Shutdown sequence complete.")
         print("INFO: Shutdown complete.")
         if COLOR_ENABLED: print(Style.RESET_ALL) # Reset colors if colorama was used
 
@@ -1498,7 +1501,5 @@ if __name__ == "__main__":
     partial_input = ""
 
     # Call the main console loop, which now incorporates all refactored logic.
-    # log_to_console_logger is available globally if main_console_loop needs to log
-    # something directly at this very top level of its call, though typically it uses it internally.
-    log_to_console_logger("INFO", "(console_ai) Starting main_console_loop from __main__.")
+    logger.info("(console_ai) Starting main_console_loop from __main__.")
 main_console_loop()

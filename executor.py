@@ -16,51 +16,52 @@ from typing import List, Dict, Optional, Any, Callable, Tuple
 # Original top-level imports for dependencies.
 # Global fallbacks are provided for context if this module were somehow run in isolation
 # or if instances aren't correctly passed to the Executor class.
-from logger_utils import should_log # Added import
+# from logger_utils import should_log # Added import - REMOVED
+import logging # New import
+
+logger = logging.getLogger(__name__) # Module-level logger
+
 try:
     # These are imported for potential fallback use if instances are not provided to the class.
     # The class itself will prefer using injected instances (self.tool_builder, self.tool_runner, etc.)
     from tool_builder_module import build_tool as _executor_global_build_tool_func
 except ImportError as e_tb_exec:
-    if should_log("WARNING"): print(f"WARNING (executor_module_load): tool_builder_module.py not found. Executor will rely on ToolBuilder instance. Error: {e_tb_exec}")
+    logger.warning(f"(executor_module_load): tool_builder_module.py not found. Executor will rely on ToolBuilder instance. Error: {e_tb_exec}")
     _executor_global_build_tool_func = None
 
 try:
     from tool_runner import run_tool_safely as _executor_global_run_tool_safely_func
 except ImportError as e_tr_exec:
-    if should_log("WARNING"): print(f"WARNING (executor_module_load): tool_runner.py not found. Executor will rely on ToolRunner instance. Error: {e_tr_exec}")
+    logger.warning(f"(executor_module_load): tool_runner.py not found. Executor will rely on ToolRunner instance. Error: {e_tr_exec}")
     _executor_global_run_tool_safely_func = None
 
 try:
     from notifier_module import log_update as _executor_global_log_update_func
 except ImportError as e_nm_exec:
-    if should_log("WARNING"): print(f"WARNING (executor_module_load): notifier_module.py not found. Executor will rely on Notifier instance. Error: {e_nm_exec}")
+    logger.warning(f"(executor_module_load): notifier_module.py not found. Executor will rely on Notifier instance. Error: {e_nm_exec}")
     _executor_global_log_update_func = None
 
-# Centralized logger and query_llm fallbacks for module-level use IF ai_core isn't available
-# The Executor class instance will use what's passed to its __init__ or its own instance fallbacks.
-_EXECUTOR_MODULE_LOGGER_FALLBACK = lambda level, msg: (print(f"[{level.upper()}] (ExecutorModuleGlobalLogFallback) {msg}") if should_log(level.upper()) else None)
+# Centralized logger and query_llm fallbacks for module-level use IF ai_core isn't available - REMOVED
+# _EXECUTOR_MODULE_LOGGER_FALLBACK = lambda level, msg: (print(f"[{level.upper()}] (ExecutorModuleGlobalLogFallback) {msg}") if should_log(level.upper()) else None)
 _EXECUTOR_MODULE_QUERY_LLM_FALLBACK = lambda prompt_text, system_prompt_override=None, raw_output=False, timeout=180: \
     f"[Error: Global Fallback LLM from Executor module. Prompt: {prompt_text[:100]}...]"
 
-_executor_module_logger = _EXECUTOR_MODULE_LOGGER_FALLBACK
-_executor_module_query_llm = _EXECUTOR_MODULE_QUERY_LLM_FALLBACK
-# _executor_module_ai_core_model_name = "module_model_fallback" # Not used directly by class
+# _executor_module_logger = _EXECUTOR_MODULE_LOGGER_FALLBACK # REMOVED
+_executor_module_query_llm = _EXECUTOR_MODULE_QUERY_LLM_FALLBACK # This can stay if query_llm_internal is not always available
 
 try:
-    from ai_core import query_llm_internal, log_background_message # MODEL_NAME is not used by executor directly
-    _executor_module_logger = log_background_message
+    from ai_core import query_llm_internal # log_background_message is removed
+    # _executor_module_logger = log_background_message # REMOVED
     _executor_module_query_llm = query_llm_internal
-    # _executor_module_ai_core_model_name = AI_CORE_MODEL_NAME_IMPORTED # Not used by executor directly
 except ImportError:
-    _executor_module_logger("WARNING", "(ExecutorModuleLoad) ai_core not fully imported. Executor class relies on injected dependencies.")
+    logger.warning("(ExecutorModuleLoad) ai_core not fully imported for query_llm_internal. Executor class relies on injected dependencies or global fallback for LLM.")
 
 _executor_module_mission_manager_global = None
 try:
     import mission_manager as mm_module_exec_import # Alias for clarity
     _executor_module_mission_manager_global = mm_module_exec_import
 except ImportError:
-    _executor_module_logger("CRITICAL", "(ExecutorModuleLoad) mission_manager.py not found. Executor methods needing mission context will be impaired if instance not provided.")
+    logger.critical("(ExecutorModuleLoad) mission_manager.py not found. Executor methods needing mission context will be impaired if instance not provided.")
 
 
 # --- Module-level Constants (from your original script) ---
@@ -103,7 +104,7 @@ SOURCE_AUTO_REFINEMENT = "AI_auto_refinement"
 class Executor:
     def __init__(self,
                  config: Optional[Dict[str, Any]] = None,
-                 logger_func: Optional[Callable[[str, str], None]] = None,
+                 # logger_func: Optional[Callable[[str, str], None]] = None, # REMOVED
                  query_llm_func: Optional[Callable[..., str]] = None,
                  mission_manager_instance: Optional[Any] = None,
                  notifier_instance: Optional[Any] = None,
@@ -111,7 +112,7 @@ class Executor:
                  tool_runner_instance: Optional[Any] = None
                  ):
         self.config = config if config else {}
-        self.logger = logger_func if logger_func else _executor_module_logger
+        self.logger = logging.getLogger(__name__ + ".Executor") # Initialize its own logger
         self.query_llm = query_llm_func if query_llm_func else _executor_module_query_llm
         
         self.mission_manager = mission_manager_instance
@@ -121,40 +122,40 @@ class Executor:
 
         # Fallbacks for injected instances if they are None
         if not self.mission_manager:
-            self.logger("WARNING", "(Executor Init) No MissionManager instance provided. Trying to use globally imported module (limited functionality).")
+            self.logger.warning("(Executor Init) No MissionManager instance provided. Trying to use globally imported module (limited functionality).")
             if _executor_module_mission_manager_global and hasattr(_executor_module_mission_manager_global, 'load_mission'):
                 self.mission_manager = _executor_module_mission_manager_global
             else:
                 class _DummyMissionManager: # Minimal fallback
                     def load_mission(self): return {"current_focus_areas": ["MissionManager Unavailable"]}
                 self.mission_manager = _DummyMissionManager()
-                self.logger("ERROR", "(Executor Init) MissionManager instance AND global module import failed.")
+                self.logger.error("(Executor Init) MissionManager instance AND global module import failed.")
         
         if not self.notifier:
-            self.logger("WARNING", "(Executor Init) No Notifier instance provided. Using global log_update_func if available.")
+            self.logger.warning("(Executor Init) No Notifier instance provided. Using global log_update_func if available.")
             class _TempNotifier:
-                def __init__(self, logger): self.logger = logger
+                def __init__(self, logger_instance): self.logger = logger_instance # Expects a standard logger
                 def log_update(self, summary, goals, approved_by):
                     if _executor_global_log_update_func: _executor_global_log_update_func(summary, goals, approved_by)
-                    else: self.logger("ERROR", f"DummyNotifier: log_update called for: {summary}, but global func missing.")
+                    else: self.logger.error(f"DummyNotifier: log_update called for: {summary}, but global func missing.")
             self.notifier = _TempNotifier(self.logger)
 
         if not self.tool_builder:
-            self.logger("WARNING", "(Executor Init) No ToolBuilder instance provided. Using global build_tool_func if available.")
+            self.logger.warning("(Executor Init) No ToolBuilder instance provided. Using global build_tool_func if available.")
             class _TempToolBuilder:
-                def __init__(self, logger): self.logger = logger
+                def __init__(self, logger_instance): self.logger = logger_instance
                 def build_tool(self, description, tool_name_suggestion, thread_id, goals_list_ref, current_goal_id):
                     if _executor_global_build_tool_func: return _executor_global_build_tool_func(description, tool_name_suggestion, thread_id, goals_list_ref, current_goal_id)
-                    self.logger("ERROR", f"DummyToolBuilder: build_tool for '{tool_name_suggestion}' called but no implementation."); return None
+                    self.logger.error(f"DummyToolBuilder: build_tool for '{tool_name_suggestion}' called but no implementation."); return None
             self.tool_builder = _TempToolBuilder(self.logger)
 
         if not self.tool_runner:
-            self.logger("WARNING", "(Executor Init) No ToolRunner instance provided. Using global run_tool_safely_func if available.")
+            self.logger.warning("(Executor Init) No ToolRunner instance provided. Using global run_tool_safely_func if available.")
             class _TempToolRunner:
-                def __init__(self, logger): self.logger = logger
+                def __init__(self, logger_instance): self.logger = logger_instance
                 def run_tool_safely(self, tool_path, tool_args=None):
                     if _executor_global_run_tool_safely_func: return _executor_global_run_tool_safely_func(tool_path, tool_args)
-                    self.logger("ERROR", f"DummyToolRunner: run_tool_safely for '{tool_path}' called but no implementation."); return {"status": "error", "error": "ToolRunner unavailable"}
+                    self.logger.error(f"DummyToolRunner: run_tool_safely for '{tool_path}' called but no implementation."); return {"status": "error", "error": "ToolRunner unavailable"}
             self.tool_runner = _TempToolRunner(self.logger)
 
         # Initialize paths and config values from self.config, using original script's defaults
@@ -173,7 +174,7 @@ class Executor:
         try:
             os.makedirs(self.meta_dir_path, exist_ok=True)
         except OSError as e:
-            self.logger("ERROR", f"(Executor class): Could not create meta directory {self.meta_dir_path}: {e}")
+            self.logger.error(f"(Executor class): Could not create meta directory {self.meta_dir_path}: {e}")
 
     # --- Start of File Helper Methods ---
     def load_goals(self) -> list:
@@ -182,9 +183,9 @@ class Executor:
         if not os.path.exists(self.goal_file_path):
             try:
                 with open(self.goal_file_path, "w", encoding="utf-8") as f: json.dump([], f)
-                self.logger("INFO", f"(Executor|load_goals): Initialized empty goals file: {self.goal_file_path}")
+                self.logger.info(f"(Executor|load_goals): Initialized empty goals file: {self.goal_file_path}")
             except IOError as e_create:
-                self.logger("ERROR", f"(Executor|load_goals): Could not create file {self.goal_file_path}: {e_create}")
+                self.logger.error(f"(Executor|load_goals): Could not create file {self.goal_file_path}: {e_create}")
             return []
         try:
             with open(self.goal_file_path, "r", encoding="utf-8") as f:
@@ -210,10 +211,10 @@ class Executor:
                 goal.setdefault("source", goal.get("source", SOURCE_USER))
             return loaded_goals
         except json.JSONDecodeError:
-            self.logger("WARNING", f"(Executor|load_goals): Could not decode {self.goal_file_path}. Returning empty list.")
+            self.logger.warning(f"(Executor|load_goals): Could not decode {self.goal_file_path}. Returning empty list.")
             return []
         except Exception as e:
-            self.logger("ERROR", f"(Executor|load_goals): Unexpected error loading {self.goal_file_path}: {e}\n{traceback.format_exc()}")
+            self.logger.error(f"(Executor|load_goals): Unexpected error loading {self.goal_file_path}: {e}\n{traceback.format_exc()}")
             return []
 
     def save_goals(self, goals: list):
@@ -223,7 +224,7 @@ class Executor:
             with open(self.goal_file_path, "w", encoding="utf-8") as f:
                 json.dump(goals, f, indent=2)
         except Exception as e:
-            self.logger("ERROR", f"(Executor|save_goals): Unexpected error saving {self.goal_file_path}: {e}\n{traceback.format_exc()}")
+            self.logger.error(f"(Executor|save_goals): Unexpected error saving {self.goal_file_path}: {e}\n{traceback.format_exc()}")
 
     def get_structured_tool_registry(self) -> list:
         """Loads the tool registry, applying migrations/defaults to entries."""
@@ -231,9 +232,9 @@ class Executor:
         if not os.path.exists(self.tool_registry_file_path):
             try:
                 with open(self.tool_registry_file_path, "w", encoding="utf-8") as f: json.dump([], f)
-                self.logger("INFO", f"(Executor|get_tool_registry): Initialized empty tool registry: {self.tool_registry_file_path}")
+                self.logger.info(f"(Executor|get_tool_registry): Initialized empty tool registry: {self.tool_registry_file_path}")
             except IOError as e_create_reg:
-                 self.logger("ERROR", f"(Executor|get_tool_registry): Could not create file {self.tool_registry_file_path}: {e_create_reg}")
+                 self.logger.error(f"(Executor|get_tool_registry): Could not create file {self.tool_registry_file_path}: {e_create_reg}")
             return []
         try:
             with open(self.tool_registry_file_path, "r", encoding="utf-8") as f:
@@ -241,12 +242,12 @@ class Executor:
             if not content.strip(): return []
             registry = json.loads(content)
             if not isinstance(registry, list): # From your original code
-                self.logger("WARNING", f"(Executor|get_tool_registry): Content in {self.tool_registry_file_path} is not a list. Reinitializing.")
+                self.logger.warning(f"(Executor|get_tool_registry): Content in {self.tool_registry_file_path} is not a list. Reinitializing.")
                 return []
             migrated_registry = []
             for tool_entry in registry: # Migration logic from your original
                 if not isinstance(tool_entry, dict):
-                    self.logger("WARNING", f"(Executor|get_tool_registry): Skipping non-dictionary entry: {str(tool_entry)[:100]}")
+                    self.logger.warning(f"(Executor|get_tool_registry): Skipping non-dictionary entry: {str(tool_entry)[:100]}")
                     continue
                 tool_entry.setdefault("last_run_time", None)
                 tool_entry.setdefault("success_count", 0)
@@ -261,10 +262,10 @@ class Executor:
                 migrated_registry.append(tool_entry)
             return migrated_registry
         except json.JSONDecodeError as e_json:
-            self.logger("ERROR", f"(Executor|get_tool_registry): Loading failed (JSON decode): {e_json}. File might be corrupt.")
+            self.logger.error(f"(Executor|get_tool_registry): Loading failed (JSON decode): {e_json}. File might be corrupt.")
             return []
         except Exception as e:
-            self.logger("ERROR", f"(Executor|get_tool_registry): Loading failed: {e}\n{traceback.format_exc()}")
+            self.logger.error(f"(Executor|get_tool_registry): Loading failed: {e}\n{traceback.format_exc()}")
             return []
 
     def save_structured_tool_registry(self, registry_data: list):
@@ -274,14 +275,14 @@ class Executor:
             with open(self.tool_registry_file_path, "w", encoding="utf-8") as f:
                 json.dump(registry_data, f, indent=2)
         except Exception as e:
-            self.logger("ERROR", f"(Executor|save_tool_registry): Saving failed: {e}\n{traceback.format_exc()}")
+            self.logger.error(f"(Executor|save_tool_registry): Saving failed: {e}\n{traceback.format_exc()}")
 
     # --- Goal Management Methods (converted from your global functions) ---
     def register_goal_in_memory(self, goal_obj_to_add: dict, goals_list_in_memory: list) -> bool:
         """Adds goal to list if not a functional duplicate (same core fields, pending)."""
         # This logic is exactly from your script.
         if any(existing_goal.get("goal_id") == goal_obj_to_add.get("goal_id") for existing_goal in goals_list_in_memory):
-            # self.logger("DEBUG", f"(Executor|register_goal) Goal ID {goal_obj_to_add.get('goal_id')} already exists.")
+            # self.logger.debug(f"(Executor|register_goal) Goal ID {goal_obj_to_add.get('goal_id')} already exists.")
             return False
 
         for existing_goal in goals_list_in_memory:
@@ -290,7 +291,7 @@ class Executor:
                existing_goal.get("status") == STATUS_PENDING and \
                existing_goal.get("source") == goal_obj_to_add.get("source") and \
                existing_goal.get("thread_id") == goal_obj_to_add.get("thread_id"):
-                # self.logger("DEBUG", f"(Executor|register_goal) Functionally duplicate goal for '{goal_obj_to_add.get('goal')}' found.")
+                # self.logger.debug(f"(Executor|register_goal) Functionally duplicate goal for '{goal_obj_to_add.get('goal')}' found.")
                 return False
             
         goals_list_in_memory.append(goal_obj_to_add)
@@ -347,9 +348,9 @@ class Executor:
         if code_content_for_core_update: new_goal["code_content_for_core_update"] = code_content_for_core_update
         
         if self.register_goal_in_memory(new_goal, goals_list_ref): # Call the instance method
-            self.logger("INFO", f"(Executor|add_goal): Added GID ..{new_goal['goal_id'][-6:]}, Thread ..{new_goal['thread_id'][-6:]}, Desc: '{description[:50]}...'")
+            self.logger.info(f"(Executor|add_goal): Added GID ..{new_goal['goal_id'][-6:]}, Thread ..{new_goal['thread_id'][-6:]}, Desc: '{description[:50]}...'")
             return True, goal_uuid
-        self.logger("WARNING", f"(Executor|add_goal): Failed to register (likely duplicate) GID ..{new_goal['goal_id'][-6:]}, Desc: '{description[:50]}...'")
+        self.logger.warning(f"(Executor|add_goal): Failed to register (likely duplicate) GID ..{new_goal['goal_id'][-6:]}, Desc: '{description[:50]}...'")
         return False, None
 
     def _update_goal_status_and_history(self, goal_obj: Dict[str, Any], new_status: str, message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
@@ -429,7 +430,7 @@ class Executor:
         )
 
         if raw_response_text.startswith("[Error:"):
-            self.logger("ERROR", f"(Executor|decompose_goal): LLM failed for '{parent_goal_obj.get('goal','N/A')[:50]}...': {raw_response_text}")
+            self.logger.error(f"(Executor|decompose_goal): LLM failed for '{parent_goal_obj.get('goal','N/A')[:50]}...': {raw_response_text}")
             return []
         try:
             tasks = json.loads(raw_response_text)
@@ -445,7 +446,7 @@ class Executor:
                         return [t.strip() for t in tasks if t.strip()]
                 except json.JSONDecodeError:
                     pass # Fall through to warning if regex-extracted part also fails
-            self.logger("WARNING", f"(Executor|decompose_goal): Could not parse JSON array for '{parent_goal_obj.get('goal','N/A')[:50]}...'. Raw: {raw_response_text[:150]}")
+            self.logger.warning(f"(Executor|decompose_goal): Could not parse JSON array for '{parent_goal_obj.get('goal','N/A')[:50]}...'. Raw: {raw_response_text[:150]}")
         return []
 
     # --- Tool Related Methods ---
@@ -486,9 +487,9 @@ class Executor:
         if selected_tool_name and selected_tool_name.upper() != "NONE":
             for tool_entry in available_tools:
                 if tool_entry.get("name") == selected_tool_name:
-                    self.logger("INFO", f"(Executor|_ask_llm_tool_select): LLM selected tool '{selected_tool_name}' for task '{task_description[:30]}...'.")
+                    self.logger.info(f"(Executor|_ask_llm_tool_select): LLM selected tool '{selected_tool_name}' for task '{task_description[:30]}...'.")
                     return tool_entry
-            self.logger("WARNING", f"(Executor|_ask_llm_tool_select): LLM selected tool '{selected_tool_name}' but it's not in the list. Raw: '{selected_tool_name_raw}'")
+            self.logger.warning(f"(Executor|_ask_llm_tool_select): LLM selected tool '{selected_tool_name}' but it's not in the list. Raw: '{selected_tool_name_raw}'")
         return None
 
     def _extract_arguments_for_tool(self, goal_description: str, tool_definition: Dict[str, Any], 
@@ -532,10 +533,10 @@ class Executor:
             if not isinstance(extracted_values_map, dict):
                 raise json.JSONDecodeError("LLM response is not a JSON object.", llm_response_str, 0)
             if "error" in extracted_values_map:
-                self.logger("ERROR", f"(Executor|_extract_args): LLM indicated error for '{tool_name}': {extracted_values_map['error']}")
+                self.logger.error(f"(Executor|_extract_args): LLM indicated error for '{tool_name}': {extracted_values_map['error']}")
                 return None
         except json.JSONDecodeError as e:
-            self.logger("ERROR", f"(Executor|_extract_args): Failed to parse LLM JSON for '{tool_name}'. Response: '{llm_response_str[:100]}'. Error: {e}")
+            self.logger.error(f"(Executor|_extract_args): Failed to parse LLM JSON for '{tool_name}'. Response: '{llm_response_str[:100]}'. Error: {e}")
             return None
 
         final_args_for_runner = []
@@ -548,9 +549,9 @@ class Executor:
             if arg_name in extracted_values_map:
                 final_args_for_runner.extend([cli_arg_name, str(extracted_values_map[arg_name])])
             elif arg_spec_item.get("required", False):
-                self.logger("ERROR", f"(Executor|_extract_args): Required arg '{arg_name}' for tool '{tool_name}' not extracted from '{goal_description[:30]}...'.")
+                self.logger.error(f"(Executor|_extract_args): Required arg '{arg_name}' for tool '{tool_name}' not extracted from '{goal_description[:30]}...'.")
                 return None
-        self.logger("INFO", f"(Executor|_extract_args): LLM extracted args for tool '{tool_name}': {final_args_for_runner}")
+        self.logger.info(f"(Executor|_extract_args): LLM extracted args for tool '{tool_name}': {final_args_for_runner}")
         return final_args_for_runner
 
     def _document_and_register_new_tool(self, tool_path: str, original_goal_description: str, 
@@ -564,7 +565,7 @@ class Executor:
         """
         # This logic is exactly from your script.
         tool_name = os.path.splitext(os.path.basename(tool_path))[0]
-        self.logger("INFO", f"(Executor|_doc_tool): Documenting/Registering {'updated ' if existing_tool_data else 'new '}tool: {tool_name}")
+        self.logger.info(f"(Executor|_doc_tool): Documenting/Registering {'updated ' if existing_tool_data else 'new '}tool: {tool_name}")
         
         system_prompt_doc_tool = (
             "You are an AI tool documenter. From Python code, its goal, and thread history, provide: "
@@ -592,7 +593,7 @@ class Executor:
             if not isinstance(tool_doc_data, dict) or "description" not in tool_doc_data:
                 raise json.JSONDecodeError("LLM response for tool doc missing 'description' or not a dict.", llm_response_str, 0)
         except json.JSONDecodeError as e:
-            self.logger("ERROR", f"(Executor|_doc_tool): Failed to parse LLM JSON for tool doc of '{tool_name}'. Resp: '{llm_response_str[:100]}'. Error: {e}")
+            self.logger.error(f"(Executor|_doc_tool): Failed to parse LLM JSON for tool doc of '{tool_name}'. Resp: '{llm_response_str[:100]}'. Error: {e}")
             # Fallback data structure
             tool_doc_data["description"] = (existing_tool_data.get("description") if existing_tool_data and isinstance(existing_tool_data, dict) else f"Tool to help with: {original_goal_description}")
             tool_doc_data["capabilities"] = (existing_tool_data.get("capabilities", []) if existing_tool_data and isinstance(existing_tool_data, dict) else [])
@@ -616,7 +617,7 @@ class Executor:
                     "last_updated": current_time_iso,
                 })
             else: # Should not happen if get_structured_tool_registry filters, but as safety:
-                self.logger("ERROR", f"(Executor|_doc_tool): Found non-dict entry at index {entry_index} for tool '{tool_name}'. Cannot update.")
+                self.logger.error(f"(Executor|_doc_tool): Found non-dict entry at index {entry_index} for tool '{tool_name}'. Cannot update.")
         else:
             new_entry = {
                 "name": tool_name, "module_path": tool_path,
@@ -629,7 +630,7 @@ class Executor:
             registry_data_list.append(new_entry)
         
         self.save_structured_tool_registry(registry_data_list) # Use instance method
-        self.logger("INFO", f"(Executor|_doc_tool): Tool '{tool_name}' information saved to registry.")
+        self.logger.info(f"(Executor|_doc_tool): Tool '{tool_name}' information saved to registry.")
 
     def _determine_failure_category(self, error_message: str, tool_file_path: Optional[str] = None) -> str:
         """Determines a failure category based on an error message."""
@@ -673,7 +674,7 @@ class Executor:
             failure_cat = self._determine_failure_category(str(error_message), target_tool_p)
         failed_goal_obj["failure_category"] = failure_cat # Ensure it's stored
 
-        self.logger("INFO", f"(ExecutorC|_formulate_corrective): GID ..{failed_goal_obj.get('goal_id','')[-6:]} ('{original_goal_text[:30]}...'), Cat: '{failure_cat}'. Formulating fix.")
+        self.logger.info(f"(ExecutorC|_formulate_corrective): GID ..{failed_goal_obj.get('goal_id','')[-6:]} ('{original_goal_text[:30]}...'), Cat: '{failure_cat}'. Formulating fix.")
         
         system_prompt_fixer = (
             "You are an AI error resolution specialist. Based on the error, original goal, potentially affected file, and thread history, "
@@ -727,7 +728,7 @@ class Executor:
                 if f"thread ..{failed_goal_obj.get('thread_id','N/A')[-6:]}" not in corrective_goal_desc_llm.lower():
                      corrective_goal_desc_llm += f" (Context: Thread ..{failed_goal_obj.get('thread_id','N/A')[-6:]})"
             else:
-                self.logger("WARNING", f"(ExecutorC|_formulate_corrective): LLM failed to generate valid corrective goal for GID ..{failed_goal_obj.get('goal_id','')[-6:]}. LLM raw: '{llm_fix_text[:100]}'")
+                self.logger.warning(f"(ExecutorC|_formulate_corrective): LLM failed to generate valid corrective goal for GID ..{failed_goal_obj.get('goal_id','')[-6:]}. LLM raw: '{llm_fix_text[:100]}'")
 
         if corrective_goal_desc_llm:
             corrective_cat = self._categorize_subtask(corrective_goal_desc_llm)
@@ -738,9 +739,9 @@ class Executor:
                     file_path_match_in_new_goal = re.search(r"`(tools/[^`]+?\.(?:py|txt|json|md))`", corrective_goal_desc_llm) # From your original
                     if file_path_match_in_new_goal:
                         new_target_file = file_path_match_in_new_goal.group(1)
-                        self.logger("INFO", f"(ExecutorC|_formulate_corrective): Extracted target file '{new_target_file}' from corrective goal description for refinement.")
+                        self.logger.info(f"(ExecutorC|_formulate_corrective): Extracted target file '{new_target_file}' from corrective goal description for refinement.")
                     else:
-                        self.logger("WARNING", f"(ExecutorC|_formulate_corrective): Corrective goal is CAT_REFINEMENT but no target file could be determined: '{corrective_goal_desc_llm}'.")
+                        self.logger.warning(f"(ExecutorC|_formulate_corrective): Corrective goal is CAT_REFINEMENT but no target file could be determined: '{corrective_goal_desc_llm}'.")
 
             success, new_goal_id = self.add_goal(
                 goals_list_ref, 
@@ -760,9 +761,9 @@ class Executor:
                 failed_goal_obj["self_correction_attempts"] = failed_goal_obj.get("self_correction_attempts", 0) + 1
                 return True
             else:
-                self.logger("WARNING", f"(ExecutorC|_formulate_corrective): Failed to add corrective goal for GID ..{failed_goal_obj.get('goal_id','')[-6:]} (likely duplicate or error).")
+                self.logger.warning(f"(ExecutorC|_formulate_corrective): Failed to add corrective goal for GID ..{failed_goal_obj.get('goal_id','')[-6:]} (likely duplicate or error).")
         else:
-            self.logger("WARNING", f"(ExecutorC|_formulate_corrective): Unable to formulate self-correction for GID ..{failed_goal_obj.get('goal_id','')[-6:]}. Error: {str(error_message).splitlines()[0][:70]}")
+            self.logger.warning(f"(ExecutorC|_formulate_corrective): Unable to formulate self-correction for GID ..{failed_goal_obj.get('goal_id','')[-6:]}. Error: {str(error_message).splitlines()[0][:70]}")
             self._update_goal_status_and_history(failed_goal_obj, STATUS_FAILED_UNCLEAR, "Failed to formulate a self-correction goal via LLM or predefined logic.")
             failed_goal_obj["self_correction_attempts"] = failed_goal_obj.get("self_correction_attempts", 0) + 1
         return False
@@ -790,7 +791,7 @@ class Executor:
         if not refinement_trigger_reason:
             return False
             
-        self.logger("INFO", f"(ExecutorC|_formulate_refine): Potential refinement for '{tool_file_path}' (Thread ..{completed_goal_obj.get('thread_id','N/A')[-6:]}): {refinement_trigger_reason}")
+        self.logger.info(f"(ExecutorC|_formulate_refine): Potential refinement for '{tool_file_path}' (Thread ..{completed_goal_obj.get('thread_id','N/A')[-6:]}): {refinement_trigger_reason}")
         
         system_prompt_refiner = (
             "You are an AI code quality analyst. Based on a tool's execution details, thread history, and a reason for refinement, "
@@ -826,10 +827,10 @@ class Executor:
                 subtask_category_override=CAT_REFINEMENT, target_file_for_processing=tool_file_path
             )
             if success:
-                self.logger("INFO", f"(ExecutorC|_formulate_refine): Added auto-refinement goal for '{tool_file_path}'.")
+                self.logger.info(f"(ExecutorC|_formulate_refine): Added auto-refinement goal for '{tool_file_path}'.")
                 return True
         else:
-            self.logger("WARNING", f"(ExecutorC|_formulate_refine): LLM failed to generate refinement goal for '{tool_file_path}'. LLM Resp: {refinement_goal_text_llm[:100]}")
+            self.logger.warning(f"(ExecutorC|_formulate_refine): LLM failed to generate refinement goal for '{tool_file_path}'. LLM Resp: {refinement_goal_text_llm[:100]}")
         return False
 
     def is_single_tool_creation_goal(self, goal_text: str, thread_context_str: str) -> bool:
@@ -868,18 +869,18 @@ class Executor:
             )
             
             response_clean = response.strip().upper()
-            self.logger("DEBUG", f"(ExecutorC|is_single_tool): Goal: '{goal_text[:50]}...' LLM_Response: '{response_clean}'")
+            self.logger.debug(f"(ExecutorC|is_single_tool): Goal: '{goal_text[:50]}...' LLM_Response: '{response_clean}'")
 
             if response_clean == "YES":
                 return True
             elif response_clean == "NO":
                 return False
             else:
-                self.logger("WARNING", f"(ExecutorC|is_single_tool): Ambiguous LLM response ('{response_clean}'). Defaulting to NO.")
+                self.logger.warning(f"(ExecutorC|is_single_tool): Ambiguous LLM response ('{response_clean}'). Defaulting to NO.")
                 return False
                 
         except Exception as e:
-            self.logger("ERROR", f"(ExecutorC|is_single_tool): LLM call failed: {e}. Defaulting to NO.")
+            self.logger.error(f"(ExecutorC|is_single_tool): LLM call failed: {e}. Defaulting to NO.")
             return False
 
     # Continuing Self-Aware/executor.py

@@ -23,11 +23,15 @@ if TYPE_CHECKING:
     from goal_worker import GoalWorker
 
 # --- Runtime Imports of truly BASE utilities (that don't import AICore or other major components) ---
-from logger_utils import log # Changed import
+import logging # New import
+# from logger_utils import log # Changed import - REMOVED
 try:
     from notifier_module import get_current_version
 except ImportError:
-    log("ERROR", "CRITICAL ERROR (ai_core): notifier_module.py not found or get_current_version missing.")
+    # log("ERROR", "CRITICAL ERROR (ai_core): notifier_module.py not found or get_current_version missing.") # Old log
+    # This early, logging might not be fully set up if this module is imported before logging_config.
+    # However, logging_config should set up a root logger.
+    logging.error("CRITICAL ERROR (ai_core): notifier_module.py not found or get_current_version missing.")
     def get_current_version(): return "N/A (notifier_module missing)"
 
 # --- Global Queues and Settings ---
@@ -35,17 +39,14 @@ OLLAMA_URL_AICORE = "http://localhost:11434/api/generate"
 MODEL_NAME_AICORE = "gemma3:4B" # Default, overridden by config if present
 
 response_queue_aicore = queue.Queue()
-log_message_queue_aicore = queue.Queue()
+# log_message_queue_aicore = queue.Queue() # REMOVED
 
 AI_STREAMING_ENABLED_AICORE = True
 
 # --- Module-level Logger ---
-def log_background_message(level: str, message: str):
-    """
-    Logs a message to the background message queue.
-    This function is imported and used by other modules.
-    """
-    log_message_queue_aicore.put((level.upper(), message))
+logger = logging.getLogger(__name__)
+
+# REMOVED log_background_message function
 
 # --- Module-level LLM Query Function ---
 def query_llm_internal(
@@ -91,16 +92,16 @@ def query_llm_internal(
         if "response" in full_response_data:
             return full_response_data["response"].strip()
         else:
-            log_background_message("ERROR", f"(ai_core.query_llm_internal) LLM response missing 'response' key. URL: {current_url}, Data: {str(full_response_data)[:200]}")
+            logger.error(f"(ai_core.query_llm_internal) LLM response missing 'response' key. URL: {current_url}, Data: {str(full_response_data)[:200]}")
             return "[Error: Malformed LLM response from API]"
     except requests.exceptions.Timeout:
-        log_background_message("ERROR", f"(ai_core.query_llm_internal) LLM request to {current_url} timed out after {timeout}s.")
+        logger.error(f"(ai_core.query_llm_internal) LLM request to {current_url} timed out after {timeout}s.")
         return f"[Error: LLM request timed out after {timeout}s]"
     except requests.exceptions.RequestException as e:
-        log_background_message("ERROR", f"(ai_core.query_llm_internal) LLM request to {current_url} failed: {e}")
+        logger.error(f"(ai_core.query_llm_internal) LLM request to {current_url} failed: {e}")
         return f"[Error: LLM request failed: {e}]"
     except Exception as e_sync_llm:
-        log_background_message("CRITICAL", f"(ai_core.query_llm_internal) Unexpected error during LLM call to {current_url}: {e_sync_llm}\n{traceback.format_exc()}")
+        logger.critical(f"(ai_core.query_llm_internal) Unexpected error during LLM call to {current_url}: {e_sync_llm}\n{traceback.format_exc()}")
         return f"[Error: Unexpected LLM call failure: {e_sync_llm}]"
 
 
@@ -130,12 +131,11 @@ class AICore:
     }
 
     def __init__(self, 
-                 config_file: Optional[str] = None,
-                 logger_func: Optional[Callable[[str, str], None]] = None):
+                 config_file: Optional[str] = None): # Removed logger_func
         """Initialize AICore with components and memory systems."""
         
         # Initialize basic services
-        self.logger = logger_func or log_background_message
+        self.logger = logging.getLogger(__name__ + ".AICore") # Initialize its own logger
         self.query_llm = query_llm_internal
         self._query_llm_for_planner_adapter = query_llm_internal
         self.config = self._load_config(config_file)
@@ -157,16 +157,17 @@ class AICore:
 
             # Initialize executor before goal worker
             from executor import Executor
+            # Executor will get its own logger now, remove logger_func
             self.executor = Executor(
                 config=self.config.get("executor_config", {}),
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm,
                 mission_manager_instance=self.mission_manager,
                 notifier_instance=self.notifier,
                 tool_builder_instance=self.tool_builder,
                 tool_runner_instance=self.tool_runner
             )
-            self.logger("DEBUG", "(AICore Init) Executor initialized successfully.")
+            self.logger.debug("(AICore Init) Executor initialized successfully.")
             
             self._init_goal_worker()
             
@@ -174,7 +175,7 @@ class AICore:
             self._verify_components_after_init()
             
         except Exception as e:
-            self.logger("CRITICAL", f"Failed to initialize AICore: {str(e)}")
+            self.logger.critical(f"Failed to initialize AICore: {str(e)}")
             traceback.print_exc()
             raise
 
@@ -227,7 +228,7 @@ class AICore:
         if not self._verify_core_components():
             raise ImportError("Critical AI Core components failed verification. System cannot operate without fallbacks.")
 
-        self.logger("INFO", f"AI Core initialized successfully. Version: {self.version}, LLM: {self.current_llm_model}")
+        self.logger.info(f"AI Core initialized successfully. Version: {self.version}, LLM: {self.current_llm_model}")
 
     def query_llm_wrapper(self, 
                          prompt_text: str,
@@ -252,12 +253,13 @@ class AICore:
         """Initialize notifier without fallbacks."""
         try:
             from notifier_module import Notifier
+            # Notifier will get its own logger now, remove logger_func
             self.notifier = Notifier(
                 config=self.config,
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm
             )
-            self.logger("DEBUG", "(AICore Init) Notifier initialized successfully.")
+            self.logger.debug("(AICore Init) Notifier initialized successfully.")
         except ImportError:
             raise ImportError("Critical component Notifier could not be initialized")
 
@@ -265,11 +267,12 @@ class AICore:
         """Initialize PromptManager without fallbacks."""
         try:
             from prompt_manager import PromptManager
+            # PromptManager will get its own logger now, remove logger_func
             self.prompt_manager = PromptManager(
-                config=self.config,
-                logger_func=self.logger
+                config=self.config
+                # logger_func=self.logger # REMOVED
             )
-            self.logger("DEBUG", "(AICore Init) PromptManager initialized successfully.")
+            self.logger.debug("(AICore Init) PromptManager initialized successfully.")
         except ImportError:
             raise ImportError("Critical component PromptManager could not be initialized")    
     
@@ -277,12 +280,13 @@ class AICore:
         """Initialize MissionManager without fallbacks."""
         try:
             from mission_manager import MissionManager
+            # MissionManager will get its own logger now, remove logger_func
             self.mission_manager = MissionManager(
                 config=self.config,
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm
             )
-            self.logger("DEBUG", "(AICore Init) MissionManager initialized successfully.")
+            self.logger.debug("(AICore Init) MissionManager initialized successfully.")
         except ImportError:
             raise ImportError("Critical component MissionManager could not be initialized")
             
@@ -290,14 +294,15 @@ class AICore:
         """Initialize SuggestionEngine without fallbacks."""
         try:
             from suggestion_engine import SuggestionEngine, ActorType, SuggestionStatus
+            # SuggestionEngine will get its own logger now, remove logger_func
             self.suggestion_engine = SuggestionEngine(
                 config=self.config,
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm
             )
             self.ActorType = ActorType
             self.SuggestionStatus = SuggestionStatus
-            self.logger("DEBUG", "(AICore Init) SuggestionEngine initialized successfully.")
+            self.logger.debug("(AICore Init) SuggestionEngine initialized successfully.")
         except ImportError:
             raise ImportError("Critical component SuggestionEngine could not be initialized")
             
@@ -311,14 +316,15 @@ class AICore:
             goals_file = os.path.join(meta_dir, "goals.json")
             active_goal_file = os.path.join(meta_dir, "active_goal.json")
 
+            # GoalMonitor will get its own logger now, remove logger
             self.goal_monitor = GoalMonitor(
                 goals_file=self.config.get("goals_file", goals_file),
                 active_goal_file=self.config.get("active_goal_file", active_goal_file),
-                suggestion_engine_instance=self.suggestion_engine,
-                logger=self.logger  # Fixed: Changed logger_func to logger
+                suggestion_engine_instance=self.suggestion_engine
+                # logger=self.logger  # REMOVED
             )
             self.Goal = Goal
-            self.logger("DEBUG", "(AICore Init) GoalMonitor initialized successfully.")
+            self.logger.debug("(AICore Init) GoalMonitor initialized successfully.")
         except ImportError:
             raise ImportError("Critical component GoalMonitor could not be initialized")
             
@@ -330,6 +336,7 @@ class AICore:
             meta_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "meta")
             tool_registry_file = os.path.join(meta_dir, "tool_registry.json")
             
+            # Planner will get its own logger now, remove logger
             self.planner = Planner(
                 query_llm_func=self._query_llm_for_planner_adapter,
                 prompt_manager=self.prompt_manager,
@@ -337,10 +344,10 @@ class AICore:
                 mission_manager=self.mission_manager,
                 suggestion_engine=self.suggestion_engine,
                 config=self.config.get("planner_config", {}),
-                logger=self.logger,
+                # logger=self.logger, # REMOVED
                 tool_registry_or_path=self.config.get("tool_registry_file", tool_registry_file)
             )
-            self.logger("DEBUG", "(AICore Init) Planner initialized successfully.")
+            self.logger.debug("(AICore Init) Planner initialized successfully.")
         except ImportError:
             raise ImportError("Critical component Planner could not be initialized")
             
@@ -348,13 +355,14 @@ class AICore:
         """Initialize Evaluator without fallbacks."""
         try:
             from evaluator import Evaluator
+            # Evaluator will get its own logger now, remove logger_func
             self.evaluator = Evaluator(
                 config=self.config.get("evaluator_config", {}),
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm,
                 mission_manager_instance=self.mission_manager
             )
-            self.logger("DEBUG", "(AICore Init) Evaluator initialized successfully.")
+            self.logger.debug("(AICore Init) Evaluator initialized successfully.")
         except ImportError:
             raise ImportError("Critical component Evaluator could not be initialized")
             
@@ -362,14 +370,15 @@ class AICore:
         """Initialize GoalWorker without fallbacks."""
         try:
             from goal_worker import GoalWorker
+            # GoalWorker will get its own logger now, remove logger_func
             self.goal_worker = GoalWorker(
                 config=self.config.get("goal_worker_config", {}),
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 executor_instance=self.executor,
                 evaluator_instance=self.evaluator,
                 suggestion_engine_instance=self.suggestion_engine
             )
-            self.logger("DEBUG", "(AICore Init) GoalWorker initialized successfully.")
+            self.logger.debug("(AICore Init) GoalWorker initialized successfully.")
         except ImportError:
             raise ImportError("Critical component GoalWorker could not be initialized")
     
@@ -377,12 +386,13 @@ class AICore:
         """Initialize tool builder without fallbacks."""
         try:
             from tool_builder_module import ToolBuilder
+            # ToolBuilder will get its own logger now, remove logger_func
             self.tool_builder = ToolBuilder(
                 config=self.config,
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm
             )
-            self.logger("DEBUG", "(AICore Init) ToolBuilder initialized successfully.")
+            self.logger.debug("(AICore Init) ToolBuilder initialized successfully.")
         except ImportError:
             raise ImportError("Critical component ToolBuilder could not be initialized")
 
@@ -390,12 +400,13 @@ class AICore:
         """Initialize tool runner without fallbacks."""
         try:
             from tool_runner import ToolRunner
+            # ToolRunner will get its own logger now, remove logger_func
             self.tool_runner = ToolRunner(
                 config=self.config,
-                logger_func=self.logger,
+                # logger_func=self.logger, # REMOVED
                 query_llm_func=self.query_llm
             )
-            self.logger("DEBUG", "(AICore Init) ToolRunner initialized successfully.")
+            self.logger.debug("(AICore Init) ToolRunner initialized successfully.")
         except ImportError:
             raise ImportError("Critical component ToolRunner could not be initialized")
 
@@ -404,8 +415,8 @@ class AICore:
             try:
                 with open(config_file, "r", encoding="utf-8") as f: return json.load(f)
             except Exception as e:
-                self.logger("ERROR", f"Failed to load config {config_file}: {e}. Using defaults.")
-        self.logger("INFO", f"Config file {config_file} not found. Using default settings.")
+                self.logger.error(f"Failed to load config {config_file}: {e}. Using defaults.")
+        self.logger.info(f"Config file {config_file} not found. Using default settings.")
 
         meta_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "meta")
         os.makedirs(meta_dir, exist_ok=True)
@@ -510,9 +521,9 @@ class AICore:
                     self.conversation_history = stored_memory.get("conversation_history", {})
                     self.knowledge_graph = stored_memory.get("knowledge_graph", {})
                     self.learning_history = stored_memory.get("learning_history", [])
-                    self.logger("DEBUG", "(AICore) Successfully loaded persistent memory.")
+                    self.logger.debug("(AICore) Successfully loaded persistent memory.")
         except Exception as e:
-            self.logger("ERROR", f"(AICore) Error loading persistent memory: {e}. Using empty memory.")
+            self.logger.error(f"(AICore) Error loading persistent memory: {e}. Using empty memory.")
             self.conversation_history = {}
             self.knowledge_graph = {}
             self.learning_history = []
@@ -532,9 +543,9 @@ class AICore:
             }
             with open(memory_file, 'w', encoding='utf-8') as f:
                 json.dump(memory_data, f, indent=2)
-            self.logger("DEBUG", "(AICore) Successfully saved persistent memory.")
+            self.logger.debug("(AICore) Successfully saved persistent memory.")
         except Exception as e:
-            self.logger("ERROR", f"(AICore) Error saving persistent memory: {e}")
+            self.logger.error(f"(AICore) Error saving persistent memory: {e}")
 
     def _verify_core_components(self):
         """Verify that all core components are present and properly initialized."""
@@ -542,31 +553,31 @@ class AICore:
             for component_name, required_methods in self._REQUIRED_COMPONENT_METHODS.items():
                 component = getattr(self, component_name, None)
                 if not component:
-                    self.logger("ERROR", f"Component {component_name} is missing")
+                    self.logger.error(f"Component {component_name} is missing")
                     return False
                 
                 # Check for fallback implementations
                 if hasattr(component, '__class__') and component.__class__.__name__.endswith('_FB'):
-                    self.logger("ERROR", f"Component {component_name} is using fallback implementation")
+                    self.logger.error(f"Component {component_name} is using fallback implementation")
                     return False
                     
                 # Check required methods
                 for method_name in required_methods:
                     if not hasattr(component, method_name):
-                        self.logger("ERROR", f"Component {component_name} missing required method: {method_name}")
+                        self.logger.error(f"Component {component_name} missing required method: {method_name}")
                         return False
                         
                 # Additional sanity check that the methods are callable
                 for method_name in required_methods:
                     if not callable(getattr(component, method_name)):
-                        self.logger("ERROR", f"Component {component_name}'s {method_name} is not callable")
+                        self.logger.error(f"Component {component_name}'s {method_name} is not callable")
                         return False
                         
-            self.logger("INFO", "All core components verified successfully")
+            self.logger.info("All core components verified successfully")
             return True
             
         except Exception as e:
-            self.logger("ERROR", f"Component verification failed: {str(e)}")
+            self.logger.error(f"Component verification failed: {str(e)}")
             return False
 
     def get_response_for_user_input_async(self, user_input: str, system_prompt_base: str,
@@ -582,7 +593,7 @@ class AICore:
         _FB_SUFFIX_AICORE = "_FB_AICORE_INIT"
         is_planner_fb = not self.planner or (hasattr(self.planner, '__class__') and self.planner.__class__.__name__.endswith(_FB_SUFFIX_AICORE))
         if is_planner_fb:
-            self.logger("CRITICAL", f"AICore cannot process input for thread '{current_thread_id}'; Planner component is a FALLBACK.")
+            self.logger.critical(f"AICore cannot process input for thread '{current_thread_id}'; Planner component is a FALLBACK.")
             err_msg = "[Error: AI Core's Planner component is not available. Please check startup logs.]"
             response_queue_aicore.put((user_input, err_msg, True, str(uuid.uuid4()), current_thread_id))
             if callback_to_console: callback_to_console(user_input, err_msg)
@@ -597,23 +608,23 @@ class AICore:
             self._update_system_status()
             planner_thread_history = self._get_thread_history_for_planner(current_thread_id)
             action, action_details = self.planner.decide_next_action(planner_thread_history, self.system_status)
-            self.logger("INFO", f"Planner for thread '{current_thread_id[-6:]}' decided action: {action}, Details: {str(action_details)[:200]}...")
+            self.logger.info(f"Planner for thread '{current_thread_id[-6:]}' decided action: {action}, Details: {str(action_details)[:200]}...")
             action_details = action_details if isinstance(action_details, dict) else {}
 
             if action == "respond_to_user":
                 final_response_to_user = action_details.get("response_text", "I've processed that, but I'm not sure how best to reply just now.")
                 if action_details.get("internal_response"):
-                    self.logger("INFO", f"Internal AI action result for thread '{current_thread_id[-6:]}': {action_details['internal_response']}")
+                    self.logger.info(f"Internal AI action result for thread '{current_thread_id[-6:]}': {action_details['internal_response']}")
             elif action == "create_goal":
                 desc_from_planner = action_details.get('description', 'Unnamed objective from AI planning.')
                 final_response_to_user = f"I've identified a new objective: '{desc_from_planner[:70]}...'. It has been added to my goals."
             elif action == "manage_suggestions":
                 final_response_to_user = action_details.get("response_text", f"I've reviewed my internal suggestions. {action_details.get('internal_response', 'Outcome logged internally.')}")
-                self.logger("INFO", f"Suggestion management outcome for thread '{current_thread_id[-6:]}': {action_details.get('internal_response')}")
+                self.logger.info(f"Suggestion management outcome for thread '{current_thread_id[-6:]}': {action_details.get('internal_response')}")
             elif action == "execute_tool":
                 tool_name_to_exec = action_details.get("tool_name", "unknown_tool")
                 final_response_to_user = f"I need to use a tool ('{tool_name_to_exec}') to help with that. (Autonomous tool execution pathway is under development)."
-                self.logger("INFO", f"Planner suggests direct execution of tool '{tool_name_to_exec}' for thread '{current_thread_id[-6:]}'.")
+                self.logger.info(f"Planner suggests direct execution of tool '{tool_name_to_exec}' for thread '{current_thread_id[-6:]}'.")
             else:
                 final_response_to_user = action_details.get("response_text", "I understand, but I'm not sure what specific action to take right now.")
 
@@ -693,7 +704,7 @@ class AICore:
                     "/create_goal <description> --priority <1-10> --details <json_string> --type <type> --due <due_date_str> --thread <thread_id> - Create new goal.\n"
                     "/reflect - Force a reflection cycle (planner decides).")
         elif command == "/reflect" and self.planner:
-            self.logger("INFO", f"User initiated reflection cycle for thread {current_thread_id}.")
+            self.logger.info(f"User initiated reflection cycle for thread {current_thread_id}.")
             planner_hist_reflect = self._get_thread_history_for_planner(current_thread_id)
             status_for_reflect = self.system_status.copy()
             status_for_reflect["current_action_intent"] = "user_forced_reflection"
@@ -704,7 +715,7 @@ class AICore:
                 response = f"Reflection cycle initiated. AI decided: {details_from_planner.get('internal_response')}"
             else:
                 response = f"Reflection cycle processed. AI internal action: {action_taken}. No direct user message formulated by planner for this."
-            self.logger("INFO", f"Reflection outcome: Action={action_taken}, Details={str(details_from_planner)[:200]}")
+            self.logger.info(f"Reflection outcome: Action={action_taken}, Details={str(details_from_planner)[:200]}")
         elif command == "/status":
             self._update_system_status()
             response = (f"System Status:\n"
@@ -720,45 +731,42 @@ class AICore:
 # --- Module-level Interface Functions ---
 _ai_core_instance_singleton: Optional[AICore] = None # Ensure this module-level variable is defined
 
-def initialize_ai_core_singleton(config_file="config.json", logger_override=None):
+def initialize_ai_core_singleton(config_file="config.json"): # Removed logger_override
     """Initialize the AI Core singleton instance and return it.
     
     Args:
         config_file (str): Path to configuration file
-        logger_override (callable, optional): Override for the default logger
     Returns:
         Optional[AICore]: The AICore instance if successful, else None.
     """
     global _ai_core_instance_singleton, MODEL_NAME # MODEL_NAME is also a global you modify
     
-    # Use a reliable logger function from the start
-    effective_logger = logger_override if callable(logger_override) else log_background_message
+    # Use the module-level logger
+    # effective_logger = logger_override if callable(logger_override) else log_background_message # REMOVED
     
     if _ai_core_instance_singleton is None:
-        effective_logger("INFO", "(ai_core_wrapper) AICore singleton is None. Attempting creation.")
+        logger.info("(ai_core_wrapper) AICore singleton is None. Attempting creation.")
         try:
-            instance = AICore(config_file=config_file, logger_func=effective_logger)
+            # AICore now initializes its own logger, no longer pass logger_func
+            instance = AICore(config_file=config_file)
             # If AICore.__init__ completes, instance is created.
             _ai_core_instance_singleton = instance # Assign to the global variable
             
-            # This access might be too early if current_llm_model is set later in AICore init,
-            # but your original code had it here. Consider moving if problematic.
             if hasattr(instance, 'current_llm_model'):
                  MODEL_NAME = instance.current_llm_model
             else:
-                 effective_logger("WARNING", "(ai_core_wrapper) AICore instance created but 'current_llm_model' attribute not found immediately.")
-                 # MODEL_NAME would retain its default or previously set value.
+                 logger.warning("(ai_core_wrapper) AICore instance created but 'current_llm_model' attribute not found immediately.")
             
-            effective_logger("INFO", "(ai_core_wrapper) AICore singleton instance CREATED and assigned.")
-            return _ai_core_instance_singleton # Explicitly return the created instance
+            logger.info("(ai_core_wrapper) AICore singleton instance CREATED and assigned.")
+            return _ai_core_instance_singleton
             
         except Exception as e_init_aicore_s:
-            effective_logger("CRITICAL", f"(ai_core_wrapper) Failed to create AICore singleton instance: {e_init_aicore_s}\n{traceback.format_exc()}")
-            _ai_core_instance_singleton = None # Ensure it's None on failure
-            return None # Explicitly return None on failure
+            logger.critical(f"(ai_core_wrapper) Failed to create AICore singleton instance: {e_init_aicore_s}\n{traceback.format_exc()}")
+            _ai_core_instance_singleton = None
+            return None
     else:
-        effective_logger("INFO", "(ai_core_wrapper) AICore singleton instance already existed. Returning existing instance.")
-        return _ai_core_instance_singleton # Return the existing instance
+        logger.info("(ai_core_wrapper) AICore singleton instance already existed. Returning existing instance.")
+        return _ai_core_instance_singleton
 
 def get_response_async(user_input: str, system_prompt_base: str, callback:Optional[Callable[[str,str],None]]=None, stream_response: bool = True, thread_id: Optional[str] = None):
     """Get an asynchronous response from the AI Core.
@@ -774,11 +782,11 @@ def get_response_async(user_input: str, system_prompt_base: str, callback:Option
     AI_STREAMING_ENABLED_AICORE = stream_response
 
     if _ai_core_instance_singleton is None:
-        log_background_message("ERROR", "(ai_core_wrapper) AICore singleton is None for get_response_async. Attempting lazy init.")
-        initialize_ai_core_singleton()
+        logger.error("(ai_core_wrapper) AICore singleton is None for get_response_async. Attempting lazy init.")
+        initialize_ai_core_singleton() # Removed logger_override
         if _ai_core_instance_singleton is None:
             err_msg = "[FATAL ERROR: AI Core could not be initialized for get_response_async.]"
-            log_background_message("CRITICAL", err_msg)
+            logger.critical(err_msg)
             response_queue_aicore.put((user_input, err_msg, True, str(uuid.uuid4()), thread_id))
             if callback: callback(user_input, err_msg)
             return
@@ -786,7 +794,7 @@ def get_response_async(user_input: str, system_prompt_base: str, callback:Option
     ai_instance_to_use = _ai_core_instance_singleton
     final_thread_id = thread_id if thread_id else str(uuid.uuid4())
     if not thread_id:
-        log_background_message("WARNING", f"(ai_core_wrapper) No thread_id from console. New thread: ..{final_thread_id[-6:]}")
+        logger.warning(f"(ai_core_wrapper) No thread_id from console. New thread: ..{final_thread_id[-6:]}")
 
     threading.Thread(
         target=ai_instance_to_use.get_response_for_user_input_async,
@@ -796,18 +804,19 @@ def get_response_async(user_input: str, system_prompt_base: str, callback:Option
 
 # Export module-level queues
 response_queue = response_queue_aicore
-log_message_queue = log_message_queue_aicore
+# log_message_queue = log_message_queue_aicore # REMOVED
 MODEL_NAME = MODEL_NAME_AICORE # Ensure this is accessible
 
 if __name__ == "__main__":
-    log("INFO", "--- Testing AICore Standalone (basic init and LLM call) ---")
-    def test_logger_main(level, message):
-        log(level.upper(), f"[{level} - MAIN_TEST] {message}")
+    # The main block should use the new logger
+    logger.info("--- Testing AICore Standalone (basic init and LLM call) ---")
+    # def test_logger_main(level, message): # Old test_logger_main
+    #     log(level.upper(), f"[{level} - MAIN_TEST] {message}")
 
     if not os.path.exists("config.json"):
         with open("config.json", "w") as f_cfg_main:
             json.dump({"llm_model_name": "gemma3:4B", "ollama_api_url": OLLAMA_URL_AICORE, "prompt_files_dir": "prompts"}, f_cfg_main)
-        test_logger_main("INFO", "Created dummy config.json for __main__ test.")
+        logger.info("Created dummy config.json for __main__ test.")
 
     if not os.path.exists("prompts"): os.makedirs("prompts", exist_ok=True)
     dummy_prompts_dir = "prompts"
@@ -817,18 +826,18 @@ if __name__ == "__main__":
         with open(os.path.join(dummy_prompts_dir, "planner_decide_action.txt"), "w") as fpa: fpa.write("Decide action.")
 
 
-    initialize_ai_core_singleton(logger_override=test_logger_main)
+    initialize_ai_core_singleton() # Removed logger_override
     if _ai_core_instance_singleton:
-        test_logger_main("INFO", "AICore singleton initialized successfully for __main__ test.")
+        logger.info("AICore singleton initialized successfully for __main__ test.")
 
-        test_logger_main("INFO", "Testing query_llm_internal directly...")
+        logger.info("Testing query_llm_internal directly...")
         test_prompt = "What is the capital of France?"
         try:
             llm_direct_response = query_llm_internal(test_prompt, model_override="gemma3:4B")
-            test_logger_main("INFO", f"Direct LLM response for '{test_prompt}': {llm_direct_response}")
+            logger.info(f"Direct LLM response for '{test_prompt}': {llm_direct_response}")
         except Exception as e_main_q_llm:
-            test_logger_main("ERROR", f"Error testing query_llm_internal: {e_main_q_llm}")
+            logger.error(f"Error testing query_llm_internal: {e_main_q_llm}")
     else:
-        test_logger_main("CRITICAL", "Failed to initialize AICore singleton for __main__ test.")
+        logger.critical("Failed to initialize AICore singleton for __main__ test.")
 
-    log("INFO", "--- AICore __main__ Test Complete ---")
+    logger.info("--- AICore __main__ Test Complete ---")

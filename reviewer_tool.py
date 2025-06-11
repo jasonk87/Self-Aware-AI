@@ -1,9 +1,8 @@
 import requests
 import json
-
-# --- Config ---
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "gemma3:4B"
+import os # Added import
+from typing import Optional # Added import
+import logging # New import
 
 # --- Reviewer Prompt Template ---
 REVIEW_TEMPLATE = '''
@@ -29,7 +28,41 @@ Your response should be one of the following:
 Also explain why in 2-3 sentences.
 '''
 
-def review_tool_idea(tool_idea: str, tools_list: list, user_goal: str) -> dict:
+def review_tool_idea(
+    tool_idea: str,
+    tools_list: list,
+    user_goal: str,
+    ollama_url_override: Optional[str] = None,
+    model_name_override: Optional[str] = None
+) -> dict:
+    # Determine Ollama URL and Model Name
+    ollama_url = ollama_url_override
+    model_name = model_name_override
+
+    if ollama_url is None or model_name is None:
+        config_path = 'config.json'
+        default_ollama_url = 'http://localhost:11434/api/generate'
+        default_model_name = 'gemma3:4B'
+
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                if ollama_url is None:
+                    ollama_url = config.get('ollama_api_url', default_ollama_url)
+                if model_name is None:
+                    model_name = config.get('llm_model_name', default_model_name)
+            except (json.JSONDecodeError, IOError):
+                if ollama_url is None:
+                    ollama_url = default_ollama_url
+                if model_name is None:
+                    model_name = default_model_name
+        else:
+            if ollama_url is None:
+                ollama_url = default_ollama_url
+            if model_name is None:
+                model_name = default_model_name
+
     prompt = REVIEW_TEMPLATE.format(
         tool_idea=tool_idea,
         tools_list=", ".join(tools_list) if tools_list else "None",
@@ -37,11 +70,11 @@ def review_tool_idea(tool_idea: str, tools_list: list, user_goal: str) -> dict:
     )
 
     payload = {
-        "model": MODEL_NAME,
+        "model": model_name, # Use determined model name
         "prompt": prompt,
         "stream": False
     }
-    res = requests.post(OLLAMA_URL, json=payload)
+    res = requests.post(ollama_url, json=payload) # Use determined Ollama URL
     reply = res.json().get("response", "").strip()
 
     decision = "UNKNOWN"
@@ -62,14 +95,32 @@ def review_tool_idea(tool_idea: str, tools_list: list, user_goal: str) -> dict:
         "explanation": explanation
     }
 
-from logger_utils import should_log # Added import
+# from logger_utils import should_log # Added import - REMOVED
+logger = logging.getLogger(__name__) # New logger
 
 # Example usage:
 if __name__ == "__main__":
+    # Attempt to load config.json for URL and model
+    config_path = 'config.json'
+    ollama_url = 'http://localhost:11434/api/generate' # Default
+    model_name = 'gemma3:4B' # Default
+
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            ollama_url = config.get('ollama_api_url', ollama_url)
+            model_name = config.get('llm_model_name', model_name)
+        except (json.JSONDecodeError, IOError):
+            # Keep defaults if config loading fails
+            pass
+
     result = review_tool_idea(
         tool_idea="A tool that counts words in a file.",
         tools_list=["summarize_pdf", "read_txt"],
-        user_goal="Help me parse documents faster"
+        user_goal="Help me parse documents faster",
+        ollama_url_override=ollama_url, # Pass loaded or default URL
+        model_name_override=model_name # Pass loaded or default model
     )
-    if should_log("INFO"): print("REVIEW DECISION:", result['decision'])
-    if should_log("INFO"): print("REVIEW EXPLANATION:\n", result['explanation'])
+    logger.info(f"REVIEW DECISION: {result['decision']}")
+    logger.info(f"REVIEW EXPLANATION:\n {result['explanation']}")

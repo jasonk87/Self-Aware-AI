@@ -1,15 +1,18 @@
 # Self-Aware/evaluator.py
 import os
+import os
 import json
 import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Callable, List, Union # Added List, Union
-from logger_utils import should_log # Added import
+import logging # New import
 
-# Fallback logger for standalone testing or if no logger is provided to the class
-_CLASS_EVALUATOR_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (EvaluatorClassFallbackLog) {message}") if should_log(level.upper()) else None)
+# Fallback logger for standalone testing or if no logger is provided to the class - REMOVED
+# _CLASS_EVALUATOR_FALLBACK_LOGGER = lambda level, message: (print(f"[{level.upper()}] (EvaluatorClassFallbackLog) {message}") if should_log(level.upper()) else None)
 _CLASS_EVALUATOR_FALLBACK_QUERY_LLM = lambda prompt_text, system_prompt_override=None, raw_output=False, timeout=300: \
     f"[Error: Fallback LLM query from Evaluator instance. Prompt: {prompt_text[:100]}...]"
+
+logger = logging.getLogger(__name__) # Module-level logger
 
 # --- Module-level imports for constants and potentially functions ---
 # These are kept as module-level imports as per your original structure.
@@ -17,15 +20,8 @@ _CLASS_EVALUATOR_FALLBACK_QUERY_LLM = lambda prompt_text, system_prompt_override
 # become instance methods/attributes, this section would change, or instances
 # would need to be passed to the Evaluator class for access.
 
-_EVALUATOR_LOGGER_FUNC = _CLASS_EVALUATOR_FALLBACK_LOGGER # Default to class fallback, instance will override
-if 'log_background_message' not in globals(): # If ai_core.log_background_message was not imported by a previous module
-    try:
-        from ai_core import log_background_message as evaluator_log_bg_msg_temp
-        _EVALUATOR_LOGGER_FUNC = evaluator_log_bg_msg_temp
-    except ImportError:
-        def evaluator_log_bg_msg_temp(level: str, message: str): # type: ignore
-            if should_log(level.upper()): print(f"[{level.upper()}] (evaluator_module_fallback_log) {message}")
-        _EVALUATOR_LOGGER_FUNC = evaluator_log_bg_msg_temp
+# _EVALUATOR_LOGGER_FUNC = _CLASS_EVALUATOR_FALLBACK_LOGGER # REMOVED
+# Logic for importing log_background_message also REMOVED
 
 try:
     from executor import (
@@ -37,7 +33,7 @@ try:
         SOURCE_SELF_CORRECTION, CAT_CORE_FILE_UPDATE
     )
 except ImportError:
-    _EVALUATOR_LOGGER_FUNC("CRITICAL", "(evaluator module): Could not import constants from executor.py. Evaluation logic will be impaired.")
+    logger.critical("(evaluator module): Could not import constants from executor.py. Evaluation logic will be impaired.")
     EXECUTOR_GOAL_FILE_CONST = os.path.join("meta", "goals.json")
     EXECUTOR_TOOL_REGISTRY_FILE_CONST = os.path.join("meta", "tool_registry.json") # Fallback, though not used directly by evaluator
     STATUS_COMPLETED, STATUS_EXECUTED_WITH_ERRORS = "completed", "executed_with_errors"
@@ -56,12 +52,12 @@ if 'get_mission_for_eval_context' not in globals(): # If mission_manager.get_mis
 class Evaluator:
     def __init__(self,
                  config: Optional[Dict[str, Any]] = None,
-                 logger_func: Optional[Callable[[str, str], None]] = None,
+                 # logger_func: Optional[Callable[[str, str], None]] = None, # REMOVED
                  query_llm_func: Optional[Callable[..., str]] = None,
                  mission_manager_instance: Optional[Any] = None):
 
         self.config = config if config else {}
-        self.logger = logger_func if logger_func else _CLASS_EVALUATOR_FALLBACK_LOGGER
+        self.logger = logging.getLogger(__name__ + ".Evaluator") # Initialize its own logger
         self.query_llm = query_llm_func if query_llm_func else _CLASS_EVALUATOR_FALLBACK_QUERY_LLM
         self.mission_manager = mission_manager_instance
 
@@ -77,26 +73,26 @@ class Evaluator:
         try:
             os.makedirs(self.meta_dir, exist_ok=True)
         except OSError as e:
-            self.logger("ERROR", f"(Evaluator class): Could not create meta directory {self.meta_dir}: {e}")
+            self.logger.error(f"(Evaluator class): Could not create meta directory {self.meta_dir}: {e}")
 
     def _load_json_eval(self, filepath: str, default_value: Optional[Union[List, Dict]] = None) -> Any:
         actual_default = [] if default_value is None else default_value
         self._ensure_meta_dir() # Ensure dir exists before file operations
         if not os.path.exists(filepath):
-            self.logger("DEBUG", f"(Evaluator class): File {filepath} not found, returning default for load.")
+            self.logger.debug(f"(Evaluator class): File {filepath} not found, returning default for load.")
             return actual_default
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
                 if not content.strip():
-                    self.logger("DEBUG", f"(Evaluator class): File {filepath} is empty, returning default for load.")
+                    self.logger.debug(f"(Evaluator class): File {filepath} is empty, returning default for load.")
                     return actual_default
                 return json.loads(content)
         except (json.JSONDecodeError, IOError) as e:
-            self.logger("WARNING", f"(Evaluator class): Error loading/decoding {filepath}: {e}. Returning default.")
+            self.logger.warning(f"(Evaluator class): Error loading/decoding {filepath}: {e}. Returning default.")
             return actual_default
         except Exception as e_unexp:
-            self.logger("CRITICAL", f"(Evaluator class): Unexpected error loading {filepath}: {e_unexp}\n{traceback.format_exc()}. Returning default.")
+            self.logger.critical(f"(Evaluator class): Unexpected error loading {filepath}: {e_unexp}\n{traceback.format_exc()}. Returning default.")
             return actual_default
 
     def _save_json_eval(self, filepath: str, data: Union[Dict[str, Any], List[Any]]):
@@ -105,22 +101,22 @@ class Evaluator:
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except IOError as e:
-            self.logger("ERROR", f"(Evaluator class): Could not write to {filepath}: {e}")
+            self.logger.error(f"(Evaluator class): Could not write to {filepath}: {e}")
         except Exception as e_unexp:
-            self.logger("CRITICAL", f"(Evaluator class): Unexpected error saving {filepath}: {e_unexp}\n{traceback.format_exc()}.")
+            self.logger.critical(f"(Evaluator class): Unexpected error saving {filepath}: {e_unexp}\n{traceback.format_exc()}.")
 
     def _get_mission_context_for_llm_eval(self) -> str:
         if self.mission_manager and hasattr(self.mission_manager, 'get_mission_statement_for_prompt'):
             try:
                 return self.mission_manager.get_mission_statement_for_prompt()
             except Exception as e:
-                self.logger("WARNING", f"(Evaluator class): Error getting mission from MissionManager instance: {e}")
+                self.logger.warning(f"(Evaluator class): Error getting mission from MissionManager instance: {e}")
         # Fallback to module-level imported function if instance method fails or no instance
         if callable(_EVALUATOR_MISSION_CONTEXT_FUNC):
             try:
                 return _EVALUATOR_MISSION_CONTEXT_FUNC()
             except Exception as e_global:
-                self.logger("WARNING", f"(Evaluator class): Error calling global mission context function: {e_global}")
+                self.logger.warning(f"(Evaluator class): Error calling global mission context function: {e_global}")
         return "Mission context unavailable for evaluation (complete fallback)."
 
 
@@ -183,7 +179,7 @@ class Evaluator:
         
         if not should_llm_eval: return None, None
 
-        self.logger("INFO", f"(Evaluator class): Performing LLM-based evaluation for goal GID: ..{goal_obj.get('goal_id', 'N/A')[-6:]}")
+        self.logger.info(f"(Evaluator class): Performing LLM-based evaluation for goal GID: ..{goal_obj.get('goal_id', 'N/A')[-6:]}")
         mission_context = self._get_mission_context_for_llm_eval()
 
         llm_eval_prompt = (
@@ -232,13 +228,13 @@ class Evaluator:
                     except ValueError: pass
                 return final_score_from_llm, llm_notes[:1000]
             except json.JSONDecodeError as e:
-                self.logger("WARNING", f"(Evaluator class): Failed to decode LLM JSON for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}. Resp: {response_str[:200]}. Err: {e}")
+                self.logger.warning(f"(Evaluator class): Failed to decode LLM JSON for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}. Resp: {response_str[:200]}. Err: {e}")
                 return None, f"LLM response parsing error: {e}"
             except Exception as e_llm_parse:
-                self.logger("ERROR", f"(Evaluator class): Unexpected error parsing LLM eval for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}: {e_llm_parse}\n{traceback.format_exc()}")
+                self.logger.error(f"(Evaluator class): Unexpected error parsing LLM eval for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}: {e_llm_parse}\n{traceback.format_exc()}")
                 return None, f"Unexpected LLM parsing error: {e_llm_parse}"
         else:
-            self.logger("WARNING", f"(Evaluator class): LLM returned an error or no response for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}. LLM response: {response_str}")
+            self.logger.warning(f"(Evaluator class): LLM returned an error or no response for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}. LLM response: {response_str}")
             return None, f"LLM evaluation failed: {response_str}"
 
     def log_evaluation_entry(self, goal_id: str, analytical_score: int, analytical_notes: str,
@@ -252,21 +248,21 @@ class Evaluator:
         if isinstance(eval_log, list): # Ensure it's a list before append
             eval_log.append(log_entry)
         else: # Should not happen if _load_json_eval returns list for [] default
-            self.logger("ERROR", f"(Evaluator class) Evaluation log at {self.evaluation_log_file_path} is not a list. Cannot append new entry.")
+            self.logger.error(f"(Evaluator class) Evaluation log at {self.evaluation_log_file_path} is not a list. Cannot append new entry.")
             eval_log = [log_entry] # Start a new list
         self._save_json_eval(self.evaluation_log_file_path, eval_log)
-        self.logger("INFO", f"(Evaluator class): GID '..{goal_id[-6:]}' evaluated. Final Score: {final_score}. Notes: {analytical_notes[:50]}...")
+        self.logger.info(f"(Evaluator class): GID '..{goal_id[-6:]}' evaluated. Final Score: {final_score}. Notes: {analytical_notes[:50]}...")
 
     def perform_evaluation_cycle(self):
-        self.logger("INFO", "(Evaluator class): Starting evaluation cycle...")
+        self.logger.info("(Evaluator class): Starting evaluation cycle...")
         goals = self._load_json_eval(self.executor_goal_file_path, []) # Use instance path
         eval_log = self._load_json_eval(self.evaluation_log_file_path, [])
         
         if not isinstance(goals, list): # Ensure goals is a list
-            self.logger("ERROR", f"(Evaluator class) Goals data from {self.executor_goal_file_path} is not a list. Skipping evaluation cycle.")
+            self.logger.error(f"(Evaluator class) Goals data from {self.executor_goal_file_path} is not a list. Skipping evaluation cycle.")
             return
         if not isinstance(eval_log, list): # Ensure eval_log is a list
-            self.logger("ERROR", f"(Evaluator class) Eval log data from {self.evaluation_log_file_path} is not a list. Reinitializing.")
+            self.logger.error(f"(Evaluator class) Eval log data from {self.evaluation_log_file_path} is not a list. Reinitializing.")
             eval_log = []
 
         evaluated_goal_ids_in_log = {entry.get("goal_id") for entry in eval_log if isinstance(entry, dict)}
@@ -288,19 +284,19 @@ class Evaluator:
                             if last_goal_mod_dt > last_eval_dt: needs_evaluation = True
                         else: needs_evaluation = False # No modification timestamp, assume no change since last eval
                     except Exception as e_ts_compare_eval:
-                        self.logger("WARNING", f"(Evaluator class) Timestamp comparison error for GID ..{goal_id[-6:] if goal_id else 'N/A'} during re-evaluation check: {e_ts_compare_eval}. Defaulting to not re-evaluate if already evaluated.")
+                        self.logger.warning(f"(Evaluator class) Timestamp comparison error for GID ..{goal_id[-6:] if goal_id else 'N/A'} during re-evaluation check: {e_ts_compare_eval}. Defaulting to not re-evaluate if already evaluated.")
                         needs_evaluation = False
                 else: # No 'last_evaluated_at' field in goal's evaluation dict
                     needs_evaluation = True
             
             if needs_evaluation:
-                self.logger("DEBUG", f"(Evaluator class): Evaluating GID ..{goal_id[-6:] if goal_id else 'N/A'} with status {status}.")
+                self.logger.debug(f"(Evaluator class): Evaluating GID ..{goal_id[-6:] if goal_id else 'N/A'} with status {status}.")
                 analytical_score, analytical_notes = self.evaluate_goal_analytically(goal)
                 llm_adj_score, llm_qual_notes = self.evaluate_goal_with_llm(goal, analytical_score, analytical_notes)
                 final_score = analytical_score
                 if llm_adj_score is not None:
                     final_score = llm_adj_score
-                    self.logger("INFO", f"(Evaluator class): LLM adjusted score for GID ..{goal_id[-6:] if goal_id else 'N/A'} from {analytical_score} to {final_score}.")
+                    self.logger.info(f"(Evaluator class): LLM adjusted score for GID ..{goal_id[-6:] if goal_id else 'N/A'} from {analytical_score} to {final_score}.")
                 
                 goal.setdefault("evaluation", {})
                 goal["evaluation"]["final_score"] = final_score
@@ -315,11 +311,13 @@ class Evaluator:
             
         if updated_goals_for_saving:
             self._save_json_eval(self.executor_goal_file_path, goals)
-        self.logger("INFO", "(Evaluator class): Evaluation cycle finished.")
+        self.logger.info("(Evaluator class): Evaluation cycle finished.")
 
 
 if __name__ == "__main__":
-    if should_log("INFO"): print("--- Testing Evaluator Class (Standalone) ---")
+    # Use the new logger for the main test block
+    main_logger = logging.getLogger(__name__ + ".__main__")
+    main_logger.info("--- Testing Evaluator Class (Standalone) ---")
     
     # Mock config for testing
     test_eval_config = {
@@ -329,11 +327,11 @@ if __name__ == "__main__":
         "evaluator_llm_timeout": 10 # Short for test
     }
 
-    def main_test_logger_eval(level, message):
-        if should_log(level.upper()): print(f"[{level.upper()}] (Eval_Test) {message}")
+    # def main_test_logger_eval(level, message): # REMOVED
+    #     if should_log(level.upper()): print(f"[{level.upper()}] (Eval_Test) {message}")
     
     def main_test_query_llm_eval(prompt_text, system_prompt_override=None, raw_output=False, timeout=180):
-        main_test_logger_eval("INFO", f"MainTest Mock LLM (Evaluator) called. Prompt starts: {prompt_text[:100]}...")
+        main_logger.info(f"MainTest Mock LLM (Evaluator) called. Prompt starts: {prompt_text[:100]}...")
         if "### Goal Evaluation Task ###" in prompt_text:
             # Simulate LLM evaluation response
             return json.dumps({
@@ -364,36 +362,36 @@ if __name__ == "__main__":
     eval_test_goals_file_path = test_eval_config["goals_file"]
     with open(eval_test_goals_file_path, "w", encoding='utf-8') as f_goals_eval_test:
         json.dump(dummy_goals_for_eval_main, f_goals_eval_test, indent=2)
-    main_test_logger_eval("INFO", f"Created dummy goals file at {eval_test_goals_file_path}")
+    main_logger.info(f"Created dummy goals file at {eval_test_goals_file_path}")
 
     eval_instance_main = Evaluator(
         config=test_eval_config,
-        logger_func=main_test_logger_eval,
+        # logger_func=main_test_logger_eval, # REMOVED
         query_llm_func=main_test_query_llm_eval,
         mission_manager_instance=MainTestMockMissionManagerEval()
     )
 
-    if should_log("INFO"): print("\nRunning perform_evaluation_cycle()...")
+    main_logger.info("\nRunning perform_evaluation_cycle()...")
     eval_instance_main.perform_evaluation_cycle()
 
-    if should_log("INFO"): print(f"\n--- Contents of {eval_instance_main.evaluation_log_file_path} after cycle ---")
+    main_logger.info(f"\n--- Contents of {eval_instance_main.evaluation_log_file_path} after cycle ---")
     eval_log_content_main = eval_instance_main._load_json_eval(eval_instance_main.evaluation_log_file_path, [])
     if isinstance(eval_log_content_main, list) and eval_log_content_main: # Check if list and not empty
         for entry_main in eval_log_content_main:
-            if should_log("DEBUG"): print(json.dumps(entry_main, indent=2))
+            main_logger.debug(json.dumps(entry_main, indent=2))
     else:
-        if should_log("INFO"): print("Evaluation log is empty or not a list.")
+        main_logger.info("Evaluation log is empty or not a list.")
         
-    if should_log("INFO"): print(f"\n--- Contents of {eval_instance_main.executor_goal_file_path} after cycle (showing evaluation scores) ---")
+    main_logger.info(f"\n--- Contents of {eval_instance_main.executor_goal_file_path} after cycle (showing evaluation scores) ---")
     goals_after_eval_main = eval_instance_main._load_json_eval(eval_instance_main.executor_goal_file_path, [])
     if isinstance(goals_after_eval_main, list) and goals_after_eval_main: # Check if list and not empty
         for goal_entry_main in goals_after_eval_main:
             goal_id_short_main = goal_entry_main.get('goal_id', 'N/A')[-6:]
             if "evaluation" in goal_entry_main and isinstance(goal_entry_main["evaluation"], dict):
-                if should_log("DEBUG"): print(f"  Goal GID: ..{goal_id_short_main}, Final Score: {goal_entry_main['evaluation'].get('final_score')}")
+                main_logger.debug(f"  Goal GID: ..{goal_id_short_main}, Final Score: {goal_entry_main['evaluation'].get('final_score')}")
             elif goal_entry_main.get('status') not in ["pending", "active", "decomposed", "approved", "awaiting_correction"]: # Only print if it SHOULD have been evaluated
-                if should_log("DEBUG"): print(f"  Goal GID: ..{goal_id_short_main}, Status: {goal_entry_main.get('status')} (No 'evaluation' field written).")
+                main_logger.debug(f"  Goal GID: ..{goal_id_short_main}, Status: {goal_entry_main.get('status')} (No 'evaluation' field written).")
     else:
-        if should_log("INFO"): print(f"{eval_instance_main.executor_goal_file_path} is empty or not a list after evaluation.")
+        main_logger.info(f"{eval_instance_main.executor_goal_file_path} is empty or not a list after evaluation.")
 
-    if should_log("INFO"): print("\n--- Evaluator Class Test Complete ---")
+    main_logger.info("\n--- Evaluator Class Test Complete ---")
