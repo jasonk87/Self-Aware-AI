@@ -192,6 +192,10 @@ class Executor:
             loaded_goals = json.loads(content)
             # Migration logic from your original load_goals:
             for goal in loaded_goals:
+                if not isinstance(goal, dict): # Ensure each item is a dict before processing
+                    self.logger("WARNING", f"(Executor|load_goals) Skipping non-dictionary item in goals list: {str(goal)[:100]}")
+                    continue
+                goal.setdefault("goal", "Unnamed goal - description missing") # Ensure 'goal' key exists
                 goal.setdefault("goal_id", str(uuid.uuid4()))
                 goal.setdefault("thread_id", str(uuid.uuid4()))
                 goal.setdefault("priority", goal.get("priority", PRIORITY_NORMAL))
