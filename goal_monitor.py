@@ -103,13 +103,26 @@ class GoalMonitor:
 
 
     def _load_goals(self) -> List[Goal]:
+        # Ensure meta directory and an empty goals file exist if not present
+        self._ensure_meta_dir_goal() # Ensures parent directory of self.goals_file exists
+        if not os.path.exists(self.goals_file):
+            self.logger("INFO", f"(GoalMonitor): Goals file not found at {self.goals_file}. Creating empty goals file.")
+            try:
+                with open(self.goals_file, "w", encoding="utf-8") as f:
+                    json.dump([], f) # Create with an empty list
+            except IOError as e_create:
+                self.logger(f"ERROR (GoalMonitor): Could not create empty goals file at {self.goals_file}: {e_create}")
+                return [] # Return empty list if creation fails
+
         try:
             with open(self.goals_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 if not content.strip(): 
+                    self.logger("DEBUG", f"(GoalMonitor): Goals file {self.goals_file} is empty. Returning empty list.")
                     return []
                 goals_data = json.loads(content)
-                if not isinstance(goals_data, list):                    
+                if not isinstance(goals_data, list):
+                    self.logger("WARNING", f"(GoalMonitor): Content of goals file {self.goals_file} is not a list. Returning empty list.")
                     return []
                 loaded_goals_list = []
                 for g_data in goals_data:
