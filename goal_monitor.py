@@ -85,10 +85,31 @@ class GoalMonitor:
                  suggestion_engine_instance: Optional[SuggestionEngine] = None, logger=None): # No quotes
         self.goals_file = goals_file
         self.active_goal_file = active_goal_file
-        self.logger = logger if logger else print
+        self.logger = logger if callable(logger) and logger.__code__.co_argcount == 2 else lambda lvl, msg: print(f"[{lvl.upper()}_GOALMONITOR_FALLBACK] {msg}")
+
         # Ensure SuggestionEngine is always a class (real or fallback) before instantiation
-        current_suggestion_engine_type = SuggestionEngine # This refers to the runtime version (real or fallback)
-        self.suggestion_engine: SuggestionEngine = suggestion_engine_instance if suggestion_engine_instance else current_suggestion_engine_type(logger=self.logger) # No quotes
+        # And pass the now-guaranteed-to-be-correct logger to it if creating a fallback
+        current_suggestion_engine_type = SuggestionEngine
+        if suggestion_engine_instance:
+            self.suggestion_engine: SuggestionEngine = suggestion_engine_instance
+        else:
+            # If SuggestionEngine is the fallback class, it might take a logger.
+            # If it's the real one, it should also take a logger.
+            try:
+                self.suggestion_engine = current_suggestion_engine_type(logger=self.logger)
+            except TypeError: # Fallback if the SuggestionEngine (real or fallback) doesn't take a logger
+                self.logger("WARNING", f"(GoalMonitor Init) SuggestionEngine type {current_suggestion_engine_type.__name__} could not be initialized with a logger. Using parameterless constructor if possible.")
+                try:
+                    self.suggestion_engine = current_suggestion_engine_type()
+                except Exception as e_se_init:
+                    self.logger("ERROR", f"(GoalMonitor Init) Critical error: Could not initialize SuggestionEngine of type {current_suggestion_engine_type.__name__}: {e_se_init}")
+                    # This is a critical failure, but __init__ cannot raise an error that AICore would easily catch.
+                    # The system will likely be impaired. A more robust system might have custom exceptions.
+                    class DummySuggestionEngine: # Final fallback
+                        def get_suggestion_by_id_or_timestamp(self,i): return None
+                        def mark_suggestion_as_approved_by_actor(self,i,approved_by): return False
+                    self.suggestion_engine = DummySuggestionEngine()
+
 
         self._ensure_meta_dir_goal()
         self.goals: List[Goal] = self._load_goals()
@@ -99,7 +120,7 @@ class GoalMonitor:
             os.makedirs(os.path.dirname(self.goals_file), exist_ok=True)
             os.makedirs(os.path.dirname(self.active_goal_file), exist_ok=True)
         except OSError as e:
-            self.logger(f"ERROR (GoalMonitor): Could not create meta directory for goal files: {e}")
+            self.logger("ERROR", f"(GoalMonitor): Could not create meta directory for goal files: {e}") # Assumed ERROR level
 
 
     def _load_goals(self) -> List[Goal]:
@@ -111,7 +132,7 @@ class GoalMonitor:
                 with open(self.goals_file, "w", encoding="utf-8") as f:
                     json.dump([], f) # Create with an empty list
             except IOError as e_create:
-                self.logger(f"ERROR (GoalMonitor): Could not create empty goals file at {self.goals_file}: {e_create}")
+                self.logger("ERROR", f"(GoalMonitor): Could not create empty goals file at {self.goals_file}: {e_create}")
                 return [] # Return empty list if creation fails
 
         try:
@@ -185,7 +206,7 @@ class GoalMonitor:
             with open(self.goals_file, "w", encoding="utf-8") as f:
                 json.dump(goals_data_to_save, f, indent=4)
         except Exception as e:
-            self.logger(f"Error saving goals: {e}")
+            self.logger("ERROR", f"Error saving goals: {e}") # Assumed ERROR level
 
     def _save_goals(self): # Public save method uses self.goals
         self._save_goals_internal(self.goals)
@@ -201,7 +222,7 @@ class GoalMonitor:
                 data = json.loads(content)
                 return data.get("active_goal_id")
         except (json.JSONDecodeError, TypeError, FileNotFoundError) as e: 
-            self.logger(f"Error loading active goal ID (or file not found): {e}")
+            self.logger("WARNING", f"Error loading active goal ID (or file not found): {e}") # Changed to WARNING
         return None
 
     def _save_active_goal_id(self):
@@ -209,7 +230,7 @@ class GoalMonitor:
             with open(self.active_goal_file, "w", encoding="utf-8") as f:
                 json.dump({"active_goal_id": self.active_goal_id}, f, indent=4)
         except Exception as e:
-            self.logger(f"Error saving active goal ID: {e}")
+            self.logger("ERROR", f"Error saving active goal ID: {e}") # Assumed ERROR
 
     def create_new_goal(self, description: str,
                           details: Optional[Dict[str, Any]] = None,
@@ -235,7 +256,7 @@ class GoalMonitor:
                     datetime.fromisoformat(due_date_str.replace("Z", "+00:00")) 
                     parsed_due_date = due_date_str
             except Exception as e_due:
-                self.logger(f"Could not parse due_date_str '{due_date_str}': {e_due}")
+                self.logger("WARNING", f"Could not parse due_date_str '{due_date_str}': {e_due}") # Assumed WARNING
 
         effective_thread_id = thread_id_param if thread_id_param else f"thr_{uuid.uuid4().hex[:8]}"
         if parent_id: 
@@ -251,7 +272,7 @@ class GoalMonitor:
         )
         self.goals.append(goal)
         self._save_goals()
-        self.logger(f"Created new goal: {goal.id} (Thread: {goal.thread_id[-6:]}) - '{goal.description[:50]}...'")
+        self.logger("INFO", f"Created new goal: {goal.id} (Thread: {goal.thread_id[-6:]}) - '{goal.description[:50]}...'") # Assumed INFO
         return goal
 
     def get_goal_by_id(self, goal_id: str) -> Optional[Goal]:
@@ -260,7 +281,7 @@ class GoalMonitor:
     def update_goal(self, goal_id: str, **kwargs) -> Optional[Goal]:
         goal = self.get_goal_by_id(goal_id)
         if not goal:
-            self.logger(f"Goal with ID {goal_id} not found for update.")
+            self.logger("WARNING", f"Goal with ID {goal_id} not found for update.") # Assumed WARNING
             return None
 
         updated_fields = False
@@ -281,7 +302,7 @@ class GoalMonitor:
         if updated_fields:
             goal.updated_at = datetime.now(timezone.utc).isoformat()
             self._save_goals()
-            self.logger(f"Goal {goal_id} updated. New status: {goal.status if 'status' in kwargs else '(status not changed)'}")
+            self.logger("INFO", f"Goal {goal_id} updated. New status: {goal.status if 'status' in kwargs else '(status not changed)'}") # Assumed INFO
         return goal
 
     def get_active_goals(self, include_paused=False) -> List[Goal]:
@@ -314,23 +335,23 @@ class GoalMonitor:
         if goal_id is None:
             self.active_goal_id = None
             self._save_active_goal_id()
-            self.logger("No active goal.")
+            self.logger("INFO", "No active goal.") # Assumed INFO
             return None
 
         goal = self.get_goal_by_id(goal_id)
         if goal:
             if self._are_dependencies_pending(goal):
-                self.logger(f"Cannot activate goal {goal.id} (Thread: {goal.thread_id[-6:]}): dependencies pending.")
+                self.logger("WARNING", f"Cannot activate goal {goal.id} (Thread: {goal.thread_id[-6:]}): dependencies pending.") # Assumed WARNING
                 if goal.status == "active": self.update_goal(goal.id, status="pending") 
                 return None
 
             self.active_goal_id = goal.id
             self.update_goal(goal.id, status="active") 
             self._save_active_goal_id()
-            self.logger(f"Active goal set: {goal.id} (Thread: {goal.thread_id[-6:]}) - '{goal.description[:50]}...'")
+            self.logger("INFO", f"Active goal set: {goal.id} (Thread: {goal.thread_id[-6:]}) - '{goal.description[:50]}...'") # Assumed INFO
             return goal
         else:
-            self.logger(f"Goal ID {goal_id} not found to set active.")
+            self.logger("WARNING", f"Goal ID {goal_id} not found to set active.") # Assumed WARNING
             if self.active_goal_id == goal_id: 
                  self.active_goal_id = None; self._save_active_goal_id()
             return None
@@ -365,17 +386,17 @@ class GoalMonitor:
     # Runtime validation of 'approved_by' is performed within the method.
     def create_goal_from_suggestion(self, suggestion_identifier: str, approved_by: Any = "user") -> Optional[Goal]:
         if not self.suggestion_engine:
-            self.logger("ERROR (GoalMonitor): SuggestionEngine not available. Cannot create goal from suggestion.")
+            self.logger("ERROR", "(GoalMonitor): SuggestionEngine not available. Cannot create goal from suggestion.") # Corrected
             return None
 
         suggestion: Optional[Dict[str, Any]] = self.suggestion_engine.get_suggestion_by_id_or_timestamp(suggestion_identifier)
         if not suggestion:
-            self.logger(f"Suggestion '{suggestion_identifier}' not found by GoalMonitor.")
+            self.logger("WARNING", f"Suggestion '{suggestion_identifier}' not found by GoalMonitor.") # Corrected
             return None
 
         current_sugg_status: Any = suggestion.get("status", "pending")
         if not (current_sugg_status == "pending" or (isinstance(current_sugg_status, str) and current_sugg_status.startswith("modified"))):
-            self.logger(f"Suggestion '{suggestion_identifier}' (status: {current_sugg_status}) not suitable for goal creation.")
+            self.logger("WARNING", f"Suggestion '{suggestion_identifier}' (status: {current_sugg_status}) not suitable for goal creation.") # Corrected
             return None
 
         valid_approved_by_str: str = "user"
@@ -391,7 +412,7 @@ class GoalMonitor:
             # This happens if approved_by is passed as something else,
             # or if the default "user" is overridden with an invalid value.
             # The type hint "ActorType" (even as string) guides the developer.
-            self.logger(f"Warning (GoalMonitor): Invalid 'approved_by' value '{approved_by}'. Defaulting to 'user'.")
+            self.logger("WARNING", f"(GoalMonitor): Invalid 'approved_by' value '{approved_by}'. Defaulting to 'user'.") # Corrected
             # valid_approved_by_str remains "user"
 
         new_goal = self.create_new_goal(
