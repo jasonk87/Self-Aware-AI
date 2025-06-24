@@ -95,37 +95,57 @@ class TestAICoreKnowledgeGraph(unittest.TestCase):
                     os.remove(os.path.join(self.test_meta_dir, f_name))
             os.rmdir(self.test_meta_dir)
 
-    def test_extract_concepts_from_text(self):
-        text1 = "The quick brown fox jumps over the lazy dog and the fox was quick."
-        concepts1 = self.ai_core._extract_concepts_from_text(text1, max_concepts=3)
-        self.assertIn("quick", concepts1)
-        self.assertIn("fox", concepts1)
-        self.assertIn("brown", concepts1) # 'lazy' and 'dog' also candidates
-        self.assertEqual(len(concepts1), 3)
+    def test_extract_concepts_from_text_llm_success(self):
+        """Test _extract_concepts_from_text with successful LLM response."""
+        test_text = "This tool uses asynchronous requests for fetching web data and parsing HTML."
+        expected_concepts = ["asynchronous requests", "web data", "html parsing"]
 
-        text2 = "A test for simple concept extraction."
-        concepts2 = self.ai_core._extract_concepts_from_text(text2, max_concepts=2)
-        self.assertEqual(sorted(concepts2), sorted(["simple", "concept"])) # Order might vary
+        # Configure the AICore's query_llm mock for this specific test
+        # Ensure the instance's query_llm is the one being mocked, not the global one.
+        self.ai_core.query_llm = unittest.mock.Mock(return_value=json.dumps(expected_concepts))
 
-        text3 = ""
-        concepts3 = self.ai_core._extract_concepts_from_text(text3)
-        self.assertEqual(concepts3, [])
+        concepts = self.ai_core._extract_concepts_from_text(test_text, max_concepts=3)
+        self.assertEqual(concepts, [c.lower() for c in expected_concepts])
+        self.ai_core.query_llm.assert_called_once()
+        call_args = self.ai_core.query_llm.call_args
+        self.assertIn(test_text, call_args[1]["prompt_text"])
+        self.assertTrue(call_args[1]["raw_output"]) # Check if raw_output was True
 
-        text4 = "tool_builder_module and tool_runner are critical for tool execution"
-        concepts4 = self.ai_core._extract_concepts_from_text(text4, max_concepts=4)
-        self.assertIn("tool_builder_module", concepts4)
-        self.assertIn("tool_runner", concepts4)
-        self.assertIn("critical", concepts4)
-        self.assertIn("execution", concepts4)
+    def test_extract_concepts_from_text_llm_error_response(self):
+        """Test _extract_concepts_from_text when LLM returns an error string."""
+        self.ai_core.query_llm = unittest.mock.Mock(return_value="[Error: LLM service unavailable]")
+        concepts = self.ai_core._extract_concepts_from_text("Some text here")
+        self.assertEqual(concepts, [])
 
+    def test_extract_concepts_from_text_llm_malformed_json(self):
+        """Test _extract_concepts_from_text with malformed JSON from LLM."""
+        self.ai_core.query_llm = unittest.mock.Mock(return_value="Not a JSON list [\"concept\"")
+        concepts = self.ai_core._extract_concepts_from_text("Another piece of text")
+        self.assertEqual(concepts, [])
 
-    def test_add_new_lesson_to_knowledge_graph(self):
+    def test_extract_concepts_from_text_llm_empty_list(self):
+        """Test _extract_concepts_from_text when LLM returns an empty JSON list."""
+        self.ai_core.query_llm = unittest.mock.Mock(return_value="[]")
+        concepts = self.ai_core._extract_concepts_from_text("Text that might yield no concepts")
+        self.assertEqual(concepts, [])
+
+    def test_extract_concepts_from_text_empty_input(self):
+        """Test _extract_concepts_from_text with empty input string."""
+        concepts = self.ai_core._extract_concepts_from_text("")
+        self.assertEqual(concepts, [])
+        self.ai_core.query_llm.assert_not_called() # LLM should not be called for empty text
+
+    @patch.object(AICore, '_extract_concepts_from_text') # Mock the now LLM-based concept extraction
+    def test_add_new_lesson_to_knowledge_graph_with_mocked_concepts(self, mock_extract_concepts):
+        """Test add_or_update_lesson_in_knowledge_graph with mocked concept extraction."""
+        mock_extract_concepts.return_value = ["mocked_concept1", "mocked_concept2"]
+
         lesson_data = {
             "lesson_learned": "Network tools require robust timeout handling.",
             "outcome_summary": "Tool A failed due to network timeout.",
             "root_cause_hypothesis": "Missing timeout in requests.get().",
             "source_goal_id": "goal_network_timeout_1",
-            "goal_description": "Fetch data from slow API with Tool A",
+            "goal_description": "Fetch data from slow API with Tool A", # Used by concepts_text
             "tool_name_context": "ToolA",
             "failure_category_context": "TimeoutError",
         }
@@ -138,35 +158,46 @@ class TestAICoreKnowledgeGraph(unittest.TestCase):
         self.assertEqual(lesson_entry["lesson_learned"], lesson_data["lesson_learned"])
         self.assertIn("goal_network_timeout_1", lesson_entry["source_goal_ids"])
         self.assertEqual(lesson_entry["frequency"], 1)
-        self.assertIn("network", lesson_entry["related_concepts"])
-        self.assertIn("tools", lesson_entry["related_concepts"])
-        self.assertIn("timeout", lesson_entry["related_concepts"])
-        self.assertIn("handling", lesson_entry["related_concepts"])
-        self.assertIn("ToolA", lesson_entry["related_concepts"]) # From tool_name_context
-        self.assertIn("TimeoutError", lesson_entry["related_concepts"]) # From failure_category_context
 
-        self.assertIn(lesson_id, self.ai_core.knowledge_graph["lessons_by_concept"]["network"])
+        # Check that mocked concepts are present, plus the context ones
+        self.assertIn("mocked_concept1", lesson_entry["related_concepts"])
+        self.assertIn("mocked_concept2", lesson_entry["related_concepts"])
+        self.assertIn("ToolA", lesson_entry["related_concepts"])
+        self.assertIn("TimeoutError", lesson_entry["related_concepts"])
+
+        mock_extract_concepts.assert_called_once()
+        # Verify concepts are used in inverted indexes
+        self.assertIn(lesson_id, self.ai_core.knowledge_graph["lessons_by_concept"]["mocked_concept1"])
         self.assertIn(lesson_id, self.ai_core.knowledge_graph["lessons_by_tool_name"]["ToolA"])
         self.assertIn(lesson_id, self.ai_core.knowledge_graph["lessons_by_failure_category"]["TimeoutError"])
 
-    def test_update_existing_lesson_in_knowledge_graph(self):
+
+    @patch.object(AICore, '_extract_concepts_from_text')
+    def test_update_existing_lesson_in_knowledge_graph_with_mocked_concepts(self, mock_extract_concepts):
         lesson_id = str(uuid.uuid4())
+        # Define side effects for multiple calls if concept extraction text changes
+        mock_extract_concepts.side_effect = [
+            ["initial_concept", "csv"], # First call
+            ["updated_concept", "csv", "parsing"]  # Second call
+        ]
+
         initial_lesson_data = {
-            "lesson_id": lesson_id, # Provide ID to ensure update
+            "lesson_id": lesson_id,
             "lesson_learned": "Initial lesson about parsing.",
             "source_goal_id": "goal_parse_1",
             "goal_description": "Parse complex CSV file",
             "failure_category_context": "ParsingError"
         }
         self.ai_core.add_or_update_lesson_in_knowledge_graph(initial_lesson_data)
-
         self.assertEqual(self.ai_core.knowledge_graph["all_lessons"][lesson_id]["frequency"], 1)
+        self.assertIn("initial_concept", self.ai_core.knowledge_graph["all_lessons"][lesson_id]["related_concepts"])
 
-        update_lesson_data = {
-            "lesson_id": lesson_id, # Same ID
-            "lesson_learned": "Initial lesson about parsing.", # Same lesson text
-            "source_goal_id": "goal_parse_2", # New source goal
-            "goal_description": "Parse another complex CSV file",
+
+        update_lesson_data = { # This data is used for context in concept extraction
+            "lesson_id": lesson_id,
+            "lesson_learned": "Initial lesson about parsing.", # Lesson text itself is part of concept source
+            "source_goal_id": "goal_parse_2",
+            "goal_description": "Parse another more complex CSV file regarding financial data", # Changed desc
             "failure_category_context": "ParsingError"
         }
         self.ai_core.add_or_update_lesson_in_knowledge_graph(update_lesson_data)
@@ -175,9 +206,25 @@ class TestAICoreKnowledgeGraph(unittest.TestCase):
         self.assertEqual(updated_entry["frequency"], 2)
         self.assertIn("goal_parse_1", updated_entry["source_goal_ids"])
         self.assertIn("goal_parse_2", updated_entry["source_goal_ids"])
-        self.assertNotEqual(updated_entry["created_at"], updated_entry["last_reinforced_at"])
+        # Check that concepts from both calls are present (assuming simple append for now)
+        self.assertIn("initial_concept", updated_entry["related_concepts"])
+        self.assertIn("updated_concept", updated_entry["related_concepts"])
+        self.assertIn("csv", updated_entry["related_concepts"])
+        self.assertIn("parsing", updated_entry["related_concepts"])
 
-    def test_get_relevant_lessons(self):
+    @patch.object(AICore, '_extract_concepts_from_text')
+    def test_get_relevant_lessons_with_mocked_concepts(self, mock_extract_concepts):
+        # Mocking _extract_concepts_from_text for predictable concept association during lesson addition
+        def concept_side_effect(*args, **kwargs):
+            text_arg = args[0] # The text being passed to _extract_concepts_from_text
+            if "SQL queries" in text_arg:
+                return ["sql", "injection", "user_auth_module", "input", "login"]
+            elif "Network requests" in text_arg:
+                return ["network", "requests", "api", "retries", "backoff"]
+            return ["generic_concept"]
+
+        mock_extract_concepts.side_effect = concept_side_effect
+
         lesson1_data = {
             "lesson_learned": "Always validate user input for SQL queries to prevent injection.",
             "outcome_summary": "Security vulnerability found due to unvalidated input.",

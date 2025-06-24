@@ -553,18 +553,70 @@ class AICore:
             self.logger("ERROR", f"(AICore) Error saving persistent memory: {e}")
 
     def _extract_concepts_from_text(self, text: str, max_concepts: int = 5) -> List[str]:
-        """Rudimentary concept extraction from text. Can be improved with NLP/LLM later."""
+        """Extracts key concepts from text using an LLM."""
         if not text:
             return []
-        words = re.findall(r'\b\w{4,15}\b', text.lower()) # Find words 4-15 chars long
-        # Filter out common stopwords (very basic list)
-        stopwords = {"the", "and", "is", "in", "it", "of", "to", "for", "a", "with", "on", "that", "this", "was", "not", "be"}
-        concepts = [word for word in words if word not in stopwords]
 
-        # Simple frequency count
-        from collections import Counter
-        most_common = [item[0] for item in Counter(concepts).most_common(max_concepts)]
-        return most_common
+        system_prompt = (
+            "You are an expert linguistic analyst and keyword extractor. Your task is to identify "
+            "the most salient and semantically relevant concepts, keywords, or tags from a given "
+            "piece of text. These concepts should be concise (typically 1-3 words) and "
+            "accurately represent the core topics or entities discussed. Avoid overly generic "
+            "terms unless they are central to the meaning."
+        )
+        user_prompt = (
+            f"Analyze the following text and extract up to {max_concepts} key concepts or tags "
+            f"that best represent its core meaning.\n\n"
+            f"Text to analyze:\n\"\"\"\n{text}\n\"\"\"\n\n"
+            f"Respond ONLY with a JSON list of strings, where each string is a concept. "
+            f"For example:\n"
+            f"[\"concept one\", \"another important keyword\", \"entity_name\"]"
+        )
+
+        try:
+            # Use self.query_llm which should be query_llm_internal
+            # Set raw_output=True if query_llm_internal handles system prompts correctly with it,
+            # or if the system_prompt_override is fully self-contained.
+            # Assuming query_llm_internal's non-raw mode prepends "User: " and appends "\nAI:",
+            # and system_prompt_override replaces the default system prompt.
+            # For direct JSON output, raw_output=True is often better if the LLM is instructed to ONLY output JSON.
+            # However, the existing query_llm_internal might not be ideal for direct JSON output.
+            # Let's try with raw_output=False first, as it's the default for most internal calls.
+            # If the LLM struggles with JSON-only in this mode, we might need a dedicated LLM call variant.
+
+            # Forcing raw_output=True here, as the prompt explicitly asks for ONLY JSON.
+            # This means query_llm_internal will send exactly what's in user_prompt (plus system_prompt_override).
+            response_str = self.query_llm(
+                prompt_text=user_prompt, # The user_prompt already contains full instructions
+                system_prompt_override=system_prompt,
+                raw_output=True, # Crucial for getting just the JSON
+                timeout=self.config.get("concept_extraction_llm_timeout", 60) # Add to config
+            )
+
+            if response_str.startswith("[Error:"):
+                self.logger("WARNING", f"(AICore|KG) LLM error during concept extraction: {response_str}")
+                return []
+
+            # Attempt to parse the JSON list
+            # The LLM might sometimes wrap the JSON in backticks or other text.
+            match = re.search(r'\[.*\]', response_str, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                try:
+                    concepts = json.loads(json_str)
+                    if isinstance(concepts, list) and all(isinstance(c, str) for c in concepts):
+                        return [c.strip().lower() for c in concepts if c.strip()][:max_concepts]
+                except json.JSONDecodeError:
+                    self.logger("WARNING", f"(AICore|KG) Failed to decode JSON concepts from LLM (after regex): '{json_str}'. Raw: '{response_str}'")
+                    return [] # Fallback on decode error
+            else: # No list-like structure found by regex
+                 self.logger("WARNING", f"(AICore|KG) No JSON list found in LLM response for concept extraction: '{response_str}'")
+                 return []
+
+
+        except Exception as e:
+            self.logger("ERROR", f"(AICore|KG) Exception during LLM concept extraction: {e}\n{traceback.format_exc()}")
+            return [] # Fallback on any other error
 
     def add_or_update_lesson_in_knowledge_graph(self, lesson_data: Dict[str, Any]):
         """
