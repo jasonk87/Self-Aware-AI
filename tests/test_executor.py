@@ -579,5 +579,261 @@ class TestExecutorFileIO(unittest.TestCase):
         written_content = "".join(call_args[0][0] for call_args in handle.write.call_args_list)
         self.assertEqual(json.loads(written_content), registry_data)
 
+
+class TestExecutorProcessSingleGoal(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = "meta_executor_tests_process_goal"
+        os.makedirs(self.test_dir, exist_ok=True)
+
+        self.mock_config = {
+            "meta_dir": self.test_dir,
+            "goals_file": os.path.join(self.test_dir, "goals.json"),
+            "tool_registry_file": os.path.join(self.test_dir, "tool_registry.json"),
+            "executor_config": {
+                "decomposition_threshold": 70,
+                "max_self_correction_attempts": 2
+            },
+            "info_llm_timeout": 10 # For CAT_INFORMATION_GATHERING
+        }
+
+        # Using unittest.mock.Mock for logger to allow assertions on calls
+        self.mock_logger_instance = unittest.mock.Mock()
+
+        # Placeholder mocks for dependencies not directly used by CAT_INFORMATION_GATHERING
+        # but needed for Executor instantiation.
+        class MockMissionManager:
+            def load_mission(self): return {"current_focus_areas": ["Test Focus"]}
+        class MockNotifier:
+            def log_update(self, summary, goals, approved_by): pass
+        class MockToolBuilder:
+            def build_tool(self, description, tool_name_suggestion, thread_id, goals_list_ref, current_goal_id): return "mock/tool.py"
+        class MockToolRunner:
+            def run_tool_safely(self, tool_path, tool_args=None): return {"status": "success", "output": "mock run"}
+
+        self.executor = Executor(
+            config=self.mock_config,
+            logger_func=self.mock_logger_instance,
+            query_llm_func=unittest.mock.Mock(), # This will be overridden per test
+            mission_manager_instance=MockMissionManager(),
+            notifier_instance=MockNotifier(),
+            tool_builder_instance=MockToolBuilder(),
+            tool_runner_instance=MockToolRunner()
+        )
+
+        # Mock helper methods that might be called internally if not directly testing them
+        self.executor._get_context_for_llm_from_thread = unittest.mock.Mock(return_value="\n### Relevant Goal History (same thread):\n- Mock History Item\n")
+
+        # Mock save_goals to prevent actual file writes and allow call verification
+        self.executor.save_goals = unittest.mock.Mock()
+
+        # Mock other methods that might be called by process_single_goal's other paths,
+        # but not relevant for CAT_INFORMATION_GATHERING specifically.
+        # This helps isolate the test to the specific category.
+        self.executor._ask_llm_for_tool_selection = unittest.mock.Mock(return_value=None)
+        self.executor.tool_builder.build_tool = unittest.mock.Mock(return_value="mock/built_tool.py")
+        self.executor.tool_runner.run_tool_safely = unittest.mock.Mock(return_value={"status":"success", "output":"mock tool run"})
+        self.executor._document_and_register_new_tool = unittest.mock.Mock()
+        self.executor._formulate_and_add_corrective_goal = unittest.mock.Mock(return_value=False) # Default to no correction
+        self.executor._formulate_and_add_refinement_goal = unittest.mock.Mock(return_value=False) # Default to no refinement
+
+
+    def tearDown(self):
+        if os.path.exists(self.test_dir):
+            for item in os.listdir(self.test_dir):
+                item_path = os.path.join(self.test_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+            os.rmdir(self.test_dir)
+
+    def test_process_single_goal_info_gathering_success(self):
+        """Test process_single_goal for CAT_INFORMATION_GATHERING with successful LLM response."""
+        goal_desc = "What is the capital of France?"
+        goal_obj = {
+            "goal_id": "info_goal_1", "thread_id": "thread_info_1",
+            "goal": goal_desc, "status": STATUS_APPROVED, # Start with approved for direct processing
+            "subtask_category": CAT_INFORMATION_GATHERING,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER
+        }
+        all_goals_list = [goal_obj]
+
+        expected_info = "The capital of France is Paris."
+        self.executor.query_llm.return_value = expected_info
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_COMPLETED)
+        self.assertIn("execution_result", goal_obj)
+        self.assertEqual(goal_obj["execution_result"].get("status"), "success")
+        self.assertEqual(goal_obj["execution_result"].get("information_gathered"), expected_info)
+        self.assertIsNone(goal_obj.get("error"))
+        self.executor.save_goals.assert_called_once_with(all_goals_list)
+
+        # Check history
+        self.assertTrue(any(
+            entry["status"] == STATUS_COMPLETED and "Execution successful" in entry.get("message", "")
+            for entry in goal_obj["history"]
+        ))
+
+    def test_process_single_goal_info_gathering_llm_error(self):
+        """Test process_single_goal for CAT_INFORMATION_GATHERING with LLM error."""
+        goal_desc = "What is quantum entanglement?"
+        goal_obj = {
+            "goal_id": "info_goal_2", "thread_id": "thread_info_2",
+            "goal": goal_desc, "status": STATUS_APPROVED,
+            "subtask_category": CAT_INFORMATION_GATHERING,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER,
+            "self_correction_attempts": 0
+        }
+        all_goals_list = [goal_obj]
+
+        llm_error_response = "[Error: LLM request failed]"
+        self.executor.query_llm.return_value = llm_error_response
+
+        # Mock _formulate_and_add_corrective_goal to prevent actual correction attempt in this unit test
+        self.executor._formulate_and_add_corrective_goal = unittest.mock.Mock(return_value=False)
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_EXECUTED_WITH_ERRORS)
+        self.assertIn("error", goal_obj)
+        self.assertTrue(llm_error_response in goal_obj["error"])
+        self.assertEqual(goal_obj["failure_category"], "InformationGatheringLLMFailure")
+        self.executor.save_goals.assert_called_once_with(all_goals_list)
+        self.executor._formulate_and_add_corrective_goal.assert_called_once() # Check if correction was attempted
+
+    def test_process_single_goal_info_gathering_approved_status_set(self):
+        """Test that an INFO goal starting as PENDING gets set to APPROVED first."""
+        goal_desc = "Explain black holes"
+        goal_obj = {
+            "goal_id": "info_goal_3", "thread_id": "thread_info_3",
+            "goal": goal_desc, "status": STATUS_PENDING, # Start with PENDING
+            "subtask_category": CAT_INFORMATION_GATHERING,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER
+        }
+        all_goals_list = [goal_obj]
+
+        self.executor.query_llm.return_value = "Black holes are regions of spacetime..."
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_COMPLETED) # Ends as completed
+
+        # Check history for the APPROVED status update
+        approved_history_entry = next((h for h in goal_obj["history"] if h["status"] == STATUS_APPROVED), None)
+        self.assertIsNotNone(approved_history_entry)
+        self.assertIn("Auto-approved for processing", approved_history_entry.get("message", ""))
+
+    @unittest.mock.patch('subprocess.run')
+    def test_process_single_goal_command_execution_pip_success(self, mock_subprocess_run):
+        """Test CAT_COMMAND_EXECUTION for a successful pip install."""
+        goal_desc = "Install requests and beautifulsoup4"
+        goal_obj = {
+            "goal_id": "cmd_goal_1", "thread_id": "thread_cmd_1",
+            "goal": goal_desc, "status": STATUS_APPROVED,
+            "subtask_category": CAT_COMMAND_EXECUTION,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER
+        }
+        all_goals_list = [goal_obj]
+
+        mock_subprocess_run.return_value = subprocess.CompletedProcess(
+            args=[sys.executable, "-m", "pip", "install", "requests", "beautifulsoup4"],
+            returncode=0, stdout="Successfully installed requests beautifulsoup4", stderr=""
+        )
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_COMPLETED)
+        self.assertIn("execution_result", goal_obj)
+        self.assertEqual(goal_obj["execution_result"]["returncode"], 0)
+        self.assertIn("Successfully installed", goal_obj["execution_result"]["stdout"])
+        self.executor.save_goals.assert_called_once_with(all_goals_list)
+        mock_subprocess_run.assert_called_once()
+        # Check that the call to subprocess.run had the correct packages
+        called_args = mock_subprocess_run.call_args[0][0]
+        self.assertIn("requests", called_args)
+        self.assertIn("beautifulsoup4", called_args)
+
+
+    @unittest.mock.patch('subprocess.run')
+    def test_process_single_goal_command_execution_pip_failure(self, mock_subprocess_run):
+        """Test CAT_COMMAND_EXECUTION for a failed pip install."""
+        goal_desc = "pip install non_existent_package_xyz123"
+        goal_obj = {
+            "goal_id": "cmd_goal_2", "thread_id": "thread_cmd_2",
+            "goal": goal_desc, "status": STATUS_APPROVED,
+            "subtask_category": CAT_COMMAND_EXECUTION,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER,
+            "self_correction_attempts": 0
+        }
+        all_goals_list = [goal_obj]
+
+        mock_subprocess_run.return_value = subprocess.CompletedProcess(
+            args=[sys.executable, "-m", "pip", "install", "non_existent_package_xyz123"],
+            returncode=1, stdout="", stderr="ERROR: Could not find a version that satisfies the requirement non_existent_package_xyz123"
+        )
+        self.executor._formulate_and_add_corrective_goal = unittest.mock.Mock(return_value=False) # Prevent actual correction
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_EXECUTED_WITH_ERRORS)
+        self.assertIn("error", goal_obj)
+        self.assertIn("ERROR: Could not find a version", goal_obj["error"])
+        self.assertEqual(goal_obj["failure_category"], "CommandExecutionFailure")
+        self.executor.save_goals.assert_called_once_with(all_goals_list)
+        mock_subprocess_run.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "non_existent_package_xyz123"],
+            capture_output=True, text=True, check=False, encoding='utf-8', errors='replace', timeout=360, env=unittest.mock.ANY
+        )
+        self.executor._formulate_and_add_corrective_goal.assert_called_once()
+
+    def test_process_single_goal_command_execution_parse_failure(self):
+        """Test CAT_COMMAND_EXECUTION when the command cannot be parsed."""
+        goal_desc = "Execute this weird command" # Not a pip install
+        goal_obj = {
+            "goal_id": "cmd_goal_3", "thread_id": "thread_cmd_3",
+            "goal": goal_desc, "status": STATUS_APPROVED,
+            "subtask_category": CAT_COMMAND_EXECUTION,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER,
+            "self_correction_attempts": 0
+        }
+        all_goals_list = [goal_obj]
+        self.executor._formulate_and_add_corrective_goal = unittest.mock.Mock(return_value=False)
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_EXECUTED_WITH_ERRORS) # Changed from BUILD_FAILED based on current code
+        self.assertIn("error", goal_obj)
+        self.assertEqual(goal_obj["failure_category"], "CommandParseFailure")
+        self.executor.save_goals.assert_called_once_with(all_goals_list)
+        self.executor._formulate_and_add_corrective_goal.assert_called_once()
+
+    @unittest.mock.patch('subprocess.run')
+    def test_process_single_goal_command_execution_install_keyword(self, mock_subprocess_run):
+        """Test CAT_COMMAND_EXECUTION using 'install' keyword for packages."""
+        goal_desc = "Please install the python packages: pandas, matplotlib"
+        goal_obj = {
+            "goal_id": "cmd_goal_4", "thread_id": "thread_cmd_4",
+            "goal": goal_desc, "status": STATUS_APPROVED,
+            "subtask_category": CAT_COMMAND_EXECUTION,
+            "priority": PRIORITY_NORMAL, "history": [], "source": SOURCE_USER
+        }
+        all_goals_list = [goal_obj]
+
+        mock_subprocess_run.return_value = subprocess.CompletedProcess(
+            args=[sys.executable, "-m", "pip", "install", "pandas", "matplotlib"],
+            returncode=0, stdout="Successfully installed pandas matplotlib", stderr=""
+        )
+
+        self.executor.process_single_goal(goal_obj, all_goals_list)
+
+        self.assertEqual(goal_obj["status"], STATUS_COMPLETED)
+        mock_subprocess_run.assert_called_once()
+        called_args = mock_subprocess_run.call_args[0][0]
+        self.assertIn("pandas", called_args)
+        self.assertIn("matplotlib", called_args)
+        self.assertNotIn("packages:", called_args) # Check that "packages:" itself isn't treated as a package
+        self.assertNotIn("python", called_args)
+
+
 if __name__ == '__main__':
     unittest.main()
