@@ -184,7 +184,13 @@ class AICore:
         self.memory_persistence = self.memory_config.get("memory_persistence", True)
         
         self.conversation_history: Dict[str, List[Dict[str,str]]] = {}
-        self.knowledge_graph = {}  # For tool/goal/concept linking
+        # Initialize knowledge_graph with the defined structure
+        self.knowledge_graph: Dict[str, Any] = {
+            "lessons_by_concept": {},
+            "lessons_by_failure_category": {},
+            "lessons_by_tool_name": {},
+            "all_lessons": {} # Stores lesson_entry objects by lesson_id
+        }
         self.learning_history = []  # Track system improvements
         
         if self.memory_persistence:
@@ -337,7 +343,8 @@ class AICore:
                 suggestion_engine=self.suggestion_engine,
                 config=self.config.get("planner_config", {}),
                 logger=self.logger,
-                tool_registry_or_path=self.config.get("tool_registry_file", tool_registry_file)
+                tool_registry_or_path=self.config.get("tool_registry_file", tool_registry_file),
+                aicore_instance=self # Pass self (AICore instance) to Planner
             )
             self.logger("DEBUG", "(AICore Init) Planner initialized successfully.")
         except ImportError:
@@ -351,7 +358,8 @@ class AICore:
                 config=self.config.get("evaluator_config", {}),
                 logger_func=self.logger,
                 query_llm_func=self.query_llm,
-                mission_manager_instance=self.mission_manager
+                mission_manager_instance=self.mission_manager,
+                aicore_instance=self # Pass self (AICore instance) to Evaluator
             )
             self.logger("DEBUG", "(AICore Init) Evaluator initialized successfully.")
         except ImportError:
@@ -543,6 +551,143 @@ class AICore:
             self.logger("DEBUG", "(AICore) Successfully saved persistent memory.")
         except Exception as e:
             self.logger("ERROR", f"(AICore) Error saving persistent memory: {e}")
+
+    def _extract_concepts_from_text(self, text: str, max_concepts: int = 5) -> List[str]:
+        """Rudimentary concept extraction from text. Can be improved with NLP/LLM later."""
+        if not text:
+            return []
+        words = re.findall(r'\b\w{4,15}\b', text.lower()) # Find words 4-15 chars long
+        # Filter out common stopwords (very basic list)
+        stopwords = {"the", "and", "is", "in", "it", "of", "to", "for", "a", "with", "on", "that", "this", "was", "not", "be"}
+        concepts = [word for word in words if word not in stopwords]
+
+        # Simple frequency count
+        from collections import Counter
+        most_common = [item[0] for item in Counter(concepts).most_common(max_concepts)]
+        return most_common
+
+    def add_or_update_lesson_in_knowledge_graph(self, lesson_data: Dict[str, Any]):
+        """
+        Adds a new lesson to the knowledge graph or updates an existing one.
+        `lesson_data` should contain keys like 'lesson_learned', 'outcome_summary',
+        'root_cause_hypothesis', 'source_goal_id', 'tool_name_context',
+        'failure_category_context', 'initial_confidence' (optional).
+        """
+        self.logger("DEBUG", f"(AICore|KG) Adding/updating lesson: {lesson_data.get('lesson_learned')[:50]}...")
+
+        lesson_text = lesson_data.get("lesson_learned", "")
+        # Simple way to check for existing similar lesson (can be improved)
+        # For now, we'll assume new insights are distinct enough or we'll update by a generated ID if provided.
+        # A more robust approach would involve semantic similarity or checking against a hash of the lesson text.
+
+        lesson_id = lesson_data.get("lesson_id", str(uuid.uuid4()))
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if lesson_id in self.knowledge_graph["all_lessons"]:
+            # Update existing lesson
+            entry = self.knowledge_graph["all_lessons"][lesson_id]
+            entry["frequency"] = entry.get("frequency", 1) + 1
+            entry["last_reinforced_at"] = now_iso
+            entry["last_updated_at"] = now_iso
+            if lesson_data.get("source_goal_id") not in entry["source_goal_ids"]:
+                entry["source_goal_ids"].append(lesson_data.get("source_goal_id"))
+            # Potentially update confidence or refine lesson_learned text if new insight is stronger/clearer
+            # For now, just increment frequency.
+            self.logger("INFO", f"(AICore|KG) Reinforced existing lesson ID: {lesson_id}, Freq: {entry['frequency']}")
+        else:
+            # Create new lesson entry
+            entry = {
+                "lesson_id": lesson_id,
+                "lesson_learned": lesson_text,
+                "outcome_summary": lesson_data.get("outcome_summary", ""),
+                "root_cause_hypothesis": lesson_data.get("root_cause_hypothesis", ""),
+                "source_goal_ids": [lesson_data.get("source_goal_id")] if lesson_data.get("source_goal_id") else [],
+                "related_concepts": [], # To be populated next
+                "tool_name_context": lesson_data.get("tool_name_context"),
+                "failure_category_context": lesson_data.get("failure_category_context"),
+                "frequency": 1,
+                "confidence": lesson_data.get("initial_confidence", 0.6), # Default confidence
+                "created_at": now_iso,
+                "last_updated_at": now_iso,
+                "last_reinforced_at": now_iso,
+                "suggested_actions_or_prompt_modifications": lesson_data.get("suggested_actions", [])
+            }
+            self.knowledge_graph["all_lessons"][lesson_id] = entry
+            self.logger("INFO", f"(AICore|KG) Added new lesson ID: {lesson_id}")
+
+        # Populate/update related_concepts (simple approach for now)
+        concepts_text = f"{lesson_text} {entry['outcome_summary']} {entry['root_cause_hypothesis']} {lesson_data.get('goal_description','')}"
+        extracted_concepts = self._extract_concepts_from_text(concepts_text)
+
+        # Add specific contexts as concepts if they exist
+        if entry["tool_name_context"] and entry["tool_name_context"] not in extracted_concepts:
+            extracted_concepts.append(entry["tool_name_context"])
+        if entry["failure_category_context"] and entry["failure_category_context"] not in extracted_concepts:
+            extracted_concepts.append(entry["failure_category_context"])
+
+        newly_added_concepts = []
+        for concept in extracted_concepts:
+            if concept not in entry["related_concepts"]:
+                entry["related_concepts"].append(concept)
+                newly_added_concepts.append(concept)
+
+            # Update inverted indexes
+            if concept not in self.knowledge_graph["lessons_by_concept"]:
+                self.knowledge_graph["lessons_by_concept"][concept] = []
+            if lesson_id not in self.knowledge_graph["lessons_by_concept"][concept]:
+                self.knowledge_graph["lessons_by_concept"][concept].append(lesson_id)
+
+        if entry["failure_category_context"]:
+            fcat = entry["failure_category_context"]
+            if fcat not in self.knowledge_graph["lessons_by_failure_category"]:
+                self.knowledge_graph["lessons_by_failure_category"][fcat] = []
+            if lesson_id not in self.knowledge_graph["lessons_by_failure_category"][fcat]:
+                self.knowledge_graph["lessons_by_failure_category"][fcat].append(lesson_id)
+
+        if entry["tool_name_context"]:
+            tname = entry["tool_name_context"]
+            if tname not in self.knowledge_graph["lessons_by_tool_name"]:
+                self.knowledge_graph["lessons_by_tool_name"][tname] = []
+            if lesson_id not in self.knowledge_graph["lessons_by_tool_name"][tname]:
+                self.knowledge_graph["lessons_by_tool_name"][tname].append(lesson_id)
+
+        if newly_added_concepts:
+            self.logger("DEBUG", f"(AICore|KG) Lesson ID {lesson_id} associated with new concepts: {newly_added_concepts}")
+
+        self._save_persistent_memory() # Save KG changes
+
+    def get_relevant_lessons(self, keywords: List[str], top_n: int = 3) -> List[Dict[str, Any]]:
+        """Retrieves relevant lessons from the knowledge graph based on keywords."""
+        if not keywords:
+            return []
+
+        candidate_lesson_ids = set()
+        for kw in keywords:
+            kw_lower = kw.lower()
+            if kw_lower in self.knowledge_graph["lessons_by_concept"]:
+                candidate_lesson_ids.update(self.knowledge_graph["lessons_by_concept"][kw_lower])
+            # Could also check tool_name and failure_category indexes if keywords match those
+            if kw_lower in self.knowledge_graph["lessons_by_tool_name"]:
+                 candidate_lesson_ids.update(self.knowledge_graph["lessons_by_tool_name"][kw_lower])
+            if kw_lower in self.knowledge_graph["lessons_by_failure_category"]:
+                 candidate_lesson_ids.update(self.knowledge_graph["lessons_by_failure_category"][kw_lower])
+
+
+        # Score candidates (simple frequency and confidence for now)
+        scored_lessons = []
+        for lesson_id in candidate_lesson_ids:
+            lesson_obj = self.knowledge_graph["all_lessons"].get(lesson_id)
+            if lesson_obj:
+                score = lesson_obj.get("frequency", 1) * lesson_obj.get("confidence", 0.5)
+                # Boost score if multiple keywords match this lesson's concepts
+                matched_keywords_count = sum(1 for kw_match in keywords if kw_match.lower() in lesson_obj.get("related_concepts", []))
+                if matched_keywords_count > 1:
+                    score *= (1 + 0.2 * (matched_keywords_count -1)) # Small boost for more matches
+                scored_lessons.append((score, lesson_obj))
+
+        # Sort by score desc and return top_n
+        scored_lessons.sort(key=lambda x: x[0], reverse=True)
+        return [lesson[1] for lesson in scored_lessons[:top_n]]
 
     def _verify_core_components(self):
         """Verify that all core components are present and properly initialized."""

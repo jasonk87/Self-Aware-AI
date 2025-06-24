@@ -52,9 +52,11 @@ class Planner:
              suggestion_engine: Optional[SuggestionEngine],
              config: Dict[str, Any],
              logger=None,
-             tool_registry_or_path: Optional[Union[Any, str]] = None):
+             tool_registry_or_path: Optional[Union[Any, str]] = None,
+             aicore_instance: Optional[Any] = None): # Added aicore_instance
 
         self.planner_cfg = config.get("planner_config", {}) if config else {}
+        self.aicore_instance = aicore_instance # Store AICore instance
 
         # Runtime check for critical dependencies (using isinstance with the runtime types)
         # This ensures that even if TYPE_CHECKING provided a type, at runtime we have a usable class.
@@ -270,7 +272,32 @@ class Planner:
                 prompt += f"\n\n{suggestion_management_instructions}"
             else:
                 self.logger("WARNING", "(Planner._construct_prompt) Could not load 'planner_manage_suggestions_instructions' template or it was empty.")
-        
+
+        # --- Add Relevant Learnings from Knowledge Graph ---
+        if self.aicore_instance and hasattr(self.aicore_instance, 'get_relevant_lessons') and hasattr(self.aicore_instance, '_extract_concepts_from_text'):
+            # Extract keywords from current conversation or goal context for KG query
+            # For simplicity, using the last user message from conversation_history if available
+            last_user_message = ""
+            if context.get("conversation_history"):
+                user_turns = [turn.get("content") for turn in context["conversation_history"] if turn.get("role") == "user" or turn.get("speaker") == "User"]
+                if user_turns:
+                    last_user_message = user_turns[-1]
+
+            # Also consider active goal descriptions for keywords
+            active_goal_texts = " ".join(template_fill_data["active_goals"]) # Already strings
+            combined_text_for_concepts = f"{last_user_message} {active_goal_texts}".strip()
+
+            if combined_text_for_concepts:
+                kg_keywords = self.aicore_instance._extract_concepts_from_text(combined_text_for_concepts, max_concepts=3)
+                if kg_keywords:
+                    relevant_lessons = self.aicore_instance.get_relevant_lessons(kg_keywords, top_n=2)
+                    if relevant_lessons:
+                        learnings_str_parts = ["\n\n### Relevant Learnings from Past Experience (Knowledge Graph):"]
+                        for lesson in relevant_lessons:
+                            learnings_str_parts.append(f"- Lesson: {lesson.get('lesson_learned', 'N/A')} (Source Goals: {len(lesson.get('source_goal_ids',[]))}, Freq: {lesson.get('frequency',1)})")
+                        prompt += "\n" + "\n".join(learnings_str_parts)
+                        self.logger("INFO", f"(Planner) Added {len(relevant_lessons)} relevant lessons to prompt from KG based on keywords: {kg_keywords}")
+
         self.logger("DEBUG", f"(Planner._construct_prompt) Constructed prompt: {prompt[:300]}...") # Log a snippet
         return prompt
 

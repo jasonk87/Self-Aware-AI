@@ -57,12 +57,14 @@ class Evaluator:
                  config: Optional[Dict[str, Any]] = None,
                  logger_func: Optional[Callable[[str, str], None]] = None,
                  query_llm_func: Optional[Callable[..., str]] = None,
-                 mission_manager_instance: Optional[Any] = None):
+                 mission_manager_instance: Optional[Any] = None,
+                 aicore_instance: Optional[Any] = None): # Added aicore_instance for KG access
 
         self.config = config if config else {}
         self.logger = logger_func if logger_func else _CLASS_EVALUATOR_FALLBACK_LOGGER
         self.query_llm = query_llm_func if query_llm_func else _CLASS_EVALUATOR_FALLBACK_QUERY_LLM
         self.mission_manager = mission_manager_instance
+        self.aicore_instance = aicore_instance # Store AICore instance
 
         self.meta_dir = self.config.get("meta_dir", "meta")
         self.evaluation_log_file_path = self.config.get("evaluation_log_file", os.path.join(self.meta_dir, "evaluation_log.json"))
@@ -219,33 +221,31 @@ class Evaluator:
         if response_str and not response_str.startswith("[Error:"):
             try:
                 eval_data = json.loads(response_str)
-                summary = eval_data.get("qualitative_summary", "LLM provided no qualitative summary.")
-                score_suggestion = eval_data.get("adjusted_score_suggestion")
-                reasoning = eval_data.get("score_reasoning", "")
-                learnings = eval_data.get("key_learnings", "LLM provided no key learnings.")
-                llm_notes = f"LLM Summary: {summary} Score Reasoning: {reasoning} Learnings: {learnings}"
-                final_score_from_llm = None
-                if isinstance(score_suggestion, int): final_score_from_llm = max(min(score_suggestion, 50), -50)
-                elif isinstance(score_suggestion, str) and score_suggestion.lstrip('-').isdigit():
-                    try: final_score_from_llm = max(min(int(score_suggestion), 50), -50)
-                    except ValueError: pass
-                return final_score_from_llm, llm_notes[:1000]
+                # Return the structured dict directly
+                return eval_data # Contains: qualitative_summary, adjusted_score_suggestion, score_reasoning, key_learnings
             except json.JSONDecodeError as e:
                 self.logger("WARNING", f"(Evaluator class): Failed to decode LLM JSON for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}. Resp: {response_str[:200]}. Err: {e}")
-                return None, f"LLM response parsing error: {e}"
+                return {"error": f"LLM response parsing error: {e}", "raw_response": response_str}
             except Exception as e_llm_parse:
                 self.logger("ERROR", f"(Evaluator class): Unexpected error parsing LLM eval for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}: {e_llm_parse}\n{traceback.format_exc()}")
-                return None, f"Unexpected LLM parsing error: {e_llm_parse}"
+                return {"error": f"Unexpected LLM parsing error: {e_llm_parse}", "raw_response": response_str}
         else:
             self.logger("WARNING", f"(Evaluator class): LLM returned an error or no response for GID ..{goal_obj.get('goal_id', 'N/A')[-6:]}. LLM response: {response_str}")
-            return None, f"LLM evaluation failed: {response_str}"
+            return {"error": f"LLM evaluation failed: {response_str}", "raw_response": response_str}
 
     def log_evaluation_entry(self, goal_id: str, analytical_score: int, analytical_notes: str,
-                             llm_score: Optional[int], llm_notes: Optional[str], final_score: int):
+                             llm_eval_data: Dict[str, Any], final_score: int):
         log_entry = {
-            "goal_id": goal_id, "analytical_score": analytical_score, "analytical_notes": analytical_notes,
-            "llm_adjusted_score": llm_score, "llm_qualitative_notes": llm_notes,
-            "final_score_assigned": final_score, "timestamp": datetime.now(timezone.utc).isoformat()
+            "goal_id": goal_id,
+            "analytical_score": analytical_score,
+            "analytical_notes": analytical_notes,
+            "llm_adjusted_score": llm_eval_data.get("adjusted_score_suggestion"),
+            "llm_qualitative_summary": llm_eval_data.get("qualitative_summary"),
+            "llm_score_reasoning": llm_eval_data.get("score_reasoning"),
+            "llm_key_learnings": llm_eval_data.get("key_learnings"),
+            "llm_error": llm_eval_data.get("error"), # Log if LLM eval itself had an error
+            "final_score_assigned": final_score,
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         eval_log = self._load_json_eval(self.evaluation_log_file_path, [])
         if isinstance(eval_log, list): # Ensure it's a list before append
@@ -261,58 +261,152 @@ class Evaluator:
         goals = self._load_json_eval(self.executor_goal_file_path, []) # Use instance path
         eval_log = self._load_json_eval(self.evaluation_log_file_path, [])
         
-        if not isinstance(goals, list): # Ensure goals is a list
+        if not isinstance(goals, list):
             self.logger("ERROR", f"(Evaluator class) Goals data from {self.executor_goal_file_path} is not a list. Skipping evaluation cycle.")
             return
-        if not isinstance(eval_log, list): # Ensure eval_log is a list
+        if not isinstance(eval_log, list):
             self.logger("ERROR", f"(Evaluator class) Eval log data from {self.evaluation_log_file_path} is not a list. Reinitializing.")
             eval_log = []
 
-        evaluated_goal_ids_in_log = {entry.get("goal_id") for entry in eval_log if isinstance(entry, dict)}
+        # evaluated_goal_ids_in_log = {entry.get("goal_id") for entry in eval_log if isinstance(entry, dict)} # Not currently used to prevent re-eval, logic is based on timestamp
         updated_goals_for_saving = False
+        processed_goal_ids_this_cycle = set() # To avoid processing a goal multiple times if it appears more than once (should not happen with UUIDs)
 
-        for goal in goals:
-            if not isinstance(goal, dict): continue # Skip non-dict goals
+        for goal_index, goal in enumerate(goals): # Iterate with index if modification of 'goals' list is needed
+            if not isinstance(goal, dict):
+                self.logger.warning(f"(Evaluator) Skipping non-dictionary item in goals list at index {goal_index}.")
+                continue
+
             goal_id = goal.get("goal_id")
+            if not goal_id:
+                self.logger.warning(f"(Evaluator) Skipping goal at index {goal_index} due to missing 'goal_id'.")
+                continue
+            if goal_id in processed_goal_ids_this_cycle:
+                continue # Already processed in this cycle (defensive)
+
             status = goal.get("status")
             needs_evaluation = False
 
-            if status in [STATUS_COMPLETED, STATUS_EXECUTED_WITH_ERRORS, STATUS_BUILD_FAILED, STATUS_FAILED_MAX_RETRIES, STATUS_FAILED_UNCLEAR]:
-                if goal.get("evaluation", {}).get("last_evaluated_at"):
+            # Define terminal states for evaluation
+            terminal_statuses = [STATUS_COMPLETED, STATUS_EXECUTED_WITH_ERRORS, STATUS_BUILD_FAILED, STATUS_FAILED_MAX_RETRIES, STATUS_FAILED_UNCLEAR]
+
+            if status in terminal_statuses:
+                last_evaluated_ts_str = goal.get("evaluation", {}).get("last_evaluated_at")
+                if last_evaluated_ts_str:
                     try:
-                        last_eval_dt = datetime.fromisoformat(goal["evaluation"]["last_evaluated_at"].replace("Z", "+00:00"))
-                        last_goal_mod_ts_str = goal.get("history", [{}])[-1].get("timestamp")
+                        last_eval_dt = datetime.fromisoformat(last_evaluated_ts_str.replace("Z", "+00:00"))
+                        # Get the timestamp of the last history entry, which indicates the goal's last modification
+                        last_history_entry = goal.get("history", [{}])[-1]
+                        last_goal_mod_ts_str = last_history_entry.get("timestamp")
+
                         if last_goal_mod_ts_str:
                             last_goal_mod_dt = datetime.fromisoformat(last_goal_mod_ts_str.replace("Z", "+00:00"))
-                            if last_goal_mod_dt > last_eval_dt: needs_evaluation = True
-                        else: needs_evaluation = False # No modification timestamp, assume no change since last eval
-                    except Exception as e_ts_compare_eval:
-                        self.logger("WARNING", f"(Evaluator class) Timestamp comparison error for GID ..{goal_id[-6:] if goal_id else 'N/A'} during re-evaluation check: {e_ts_compare_eval}. Defaulting to not re-evaluate if already evaluated.")
-                        needs_evaluation = False
-                else: # No 'last_evaluated_at' field in goal's evaluation dict
+                            if last_goal_mod_dt > last_eval_dt:
+                                needs_evaluation = True
+                                self.logger("DEBUG", f"(Evaluator) GID ..{goal_id[-6:]} needs re-evaluation. Last mod: {last_goal_mod_dt}, Last eval: {last_eval_dt}.")
+                        else:
+                            # Should not happen if goals always have history, but handle defensively
+                            self.logger.warning(f"(Evaluator) GID ..{goal_id[-6:]} has no modification timestamp in last history entry. Assuming no change since last eval if any.")
+                            needs_evaluation = False
+                    except ValueError as e_ts_compare_eval: # More specific exception
+                        self.logger("WARNING", f"(Evaluator) Timestamp parsing error for GID ..{goal_id[-6:]} during re-evaluation check: {e_ts_compare_eval}. Re-evaluating.")
+                        needs_evaluation = True # Re-evaluate if unsure
+                    except Exception as e_ts_compare_eval_unexp:
+                        self.logger("ERROR", f"(Evaluator) Unexpected timestamp comparison error for GID ..{goal_id[-6:]}: {e_ts_compare_eval_unexp}. Re-evaluating.")
+                        needs_evaluation = True # Re-evaluate if unsure
+                else: # No 'last_evaluated_at' field, so it's never been evaluated
                     needs_evaluation = True
             
             if needs_evaluation:
-                self.logger("DEBUG", f"(Evaluator class): Evaluating GID ..{goal_id[-6:] if goal_id else 'N/A'} with status {status}.")
+                self.logger("INFO", f"(Evaluator): Evaluating GID ..{goal_id[-6:]} with status '{status}'.")
+
+                # --- Data Collection (as per Step 1 of the new plan) ---
+                evaluation_data_points = {
+                    "goal_id": goal_id,
+                    "thread_id": goal.get("thread_id"),
+                    "goal_description": goal.get("goal"),
+                    "subtask_category": goal.get("subtask_category"),
+                    "status": status,
+                    "source": goal.get("source"),
+                    "created_at": goal.get("created_at"),
+                    "final_timestamp": goal.get("history", [{}])[-1].get("timestamp"),
+                    "tool_file": goal.get("tool_file"),
+                    "tool_name": os.path.basename(goal.get("tool_file")) if goal.get("tool_file") else goal.get("used_existing_tool"),
+                    "execution_result_summary": str(goal.get("execution_result", {}))[:500], # Summary
+                    "goal_error_message": goal.get("error"),
+                    "failure_category": goal.get("failure_category"),
+                    "self_correction_attempts": goal.get("self_correction_attempts", 0),
+                    # "history_summary": str(goal.get("history", [])[-2:]) # e.g. last 2 history items
+                }
+                if evaluation_data_points["created_at"] and evaluation_data_points["final_timestamp"]:
+                    try:
+                        start_dt = datetime.fromisoformat(evaluation_data_points["created_at"].replace("Z", "+00:00"))
+                        end_dt = datetime.fromisoformat(evaluation_data_points["final_timestamp"].replace("Z", "+00:00"))
+                        evaluation_data_points["duration_seconds"] = (end_dt - start_dt).total_seconds()
+                    except ValueError:
+                        evaluation_data_points["duration_seconds"] = None
+
+                # For now, we'll just log these collected data points. LLM analysis comes next.
+                self.logger("DEBUG", f"(Evaluator) Collected data for GID ..{goal_id[-6:]}: {json.dumps(evaluation_data_points, indent=2)[:1000]}...")
+
+
+                # --- Original scoring logic (can be part of the data fed to LLM later) ---
                 analytical_score, analytical_notes = self.evaluate_goal_analytically(goal)
-                llm_adj_score, llm_qual_notes = self.evaluate_goal_with_llm(goal, analytical_score, analytical_notes)
-                final_score = analytical_score
-                if llm_adj_score is not None:
-                    final_score = llm_adj_score
-                    self.logger("INFO", f"(Evaluator class): LLM adjusted score for GID ..{goal_id[-6:] if goal_id else 'N/A'} from {analytical_score} to {final_score}.")
+                # LLM analysis (step 3 of new plan) would go here, using evaluation_data_points
+                # --- Original scoring logic (can be part of the data fed to LLM later) ---
+                analytical_score, analytical_notes = self.evaluate_goal_analytically(goal)
+
+                # --- LLM-Powered Analysis & Knowledge Graph Integration ---
+                llm_evaluation_results = self.evaluate_goal_with_llm(goal, analytical_score, analytical_notes)
+
+                llm_adj_score = None
+                if isinstance(llm_evaluation_results.get("adjusted_score_suggestion"), int):
+                    llm_adj_score = max(min(llm_evaluation_results["adjusted_score_suggestion"], 50), -50)
                 
+                final_score = llm_adj_score if llm_adj_score is not None else analytical_score
+                if llm_adj_score is not None:
+                     self.logger("INFO", f"(Evaluator class): LLM adjusted score for GID ..{goal_id[-6:]} from {analytical_score} to {final_score}.")
+
+                # Store evaluation details on the goal object
                 goal.setdefault("evaluation", {})
                 goal["evaluation"]["final_score"] = final_score
                 goal["evaluation"]["analytical_score"] = analytical_score
                 goal["evaluation"]["analytical_notes"] = analytical_notes
-                if llm_adj_score is not None: goal["evaluation"]["llm_adjusted_score"] = llm_adj_score
-                if llm_qual_notes: goal["evaluation"]["llm_qualitative_notes"] = llm_qual_notes
+                if llm_adj_score is not None:
+                    goal["evaluation"]["llm_adjusted_score"] = llm_adj_score
+                goal["evaluation"]["llm_qualitative_summary"] = llm_evaluation_results.get("qualitative_summary")
+                goal["evaluation"]["llm_score_reasoning"] = llm_evaluation_results.get("score_reasoning")
+                goal["evaluation"]["llm_key_learnings"] = llm_evaluation_results.get("key_learnings")
+                goal["evaluation"]["llm_eval_error"] = llm_evaluation_results.get("error") # Store if LLM call itself failed
                 goal["evaluation"]["last_evaluated_at"] = datetime.now(timezone.utc).isoformat()
                 
-                self.log_evaluation_entry(goal_id, analytical_score, analytical_notes, llm_adj_score, llm_qual_notes, final_score)
+                self.log_evaluation_entry(goal_id, analytical_score, analytical_notes, llm_evaluation_results, final_score)
+
+                # Integrate with KnowledgeGraph
+                if self.aicore_instance and hasattr(self.aicore_instance, 'add_or_update_lesson_in_knowledge_graph'):
+                    if not llm_evaluation_results.get("error") and llm_evaluation_results.get("key_learnings"): # Only add if LLM eval was successful and provided learnings
+                        lesson_data_for_kg = {
+                            "lesson_learned": llm_evaluation_results.get("key_learnings"),
+                            "outcome_summary": llm_evaluation_results.get("qualitative_summary"),
+                            "root_cause_hypothesis": goal.get("failure_category") or llm_evaluation_results.get("score_reasoning"), # Prioritize known failure_category
+                            "source_goal_id": goal_id,
+                            "goal_description": goal.get("goal"), # Pass goal description for concept extraction
+                            "tool_name_context": evaluation_data_points.get("tool_name"),
+                            "failure_category_context": goal.get("failure_category"),
+                            # "initial_confidence": Could be derived from LLM or analytical score later
+                        }
+                        try:
+                            self.aicore_instance.add_or_update_lesson_in_knowledge_graph(lesson_data_for_kg)
+                        except Exception as e_kg_add:
+                            self.logger("ERROR", f"(Evaluator) Failed to add lesson to KnowledgeGraph for GID ..{goal_id[-6:]}: {e_kg_add}\n{traceback.format_exc()}")
+                else:
+                    self.logger.warning(f"(Evaluator) AICore instance or add_or_update_lesson_in_knowledge_graph method not available. Skipping KG update for GID ..{goal_id[-6:]}.")
+
                 updated_goals_for_saving = True
+                processed_goal_ids_this_cycle.add(goal_id)
             
         if updated_goals_for_saving:
+            self.logger("INFO", f"(Evaluator) Saving updated goals file: {self.executor_goal_file_path}")
             self._save_json_eval(self.executor_goal_file_path, goals)
         self.logger("INFO", "(Evaluator class): Evaluation cycle finished.")
 
