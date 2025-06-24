@@ -84,7 +84,8 @@ class Planner:
         self.mission_manager: Optional[MissionManager] = mission_manager
         self.suggestion_engine: Optional[SuggestionEngine] = suggestion_engine
         self.config = config
-        self.logger = logger if logger else print
+        self.logger = logger if logger else lambda lvl, msg: print(f"[{lvl.upper()}_PLANNER_FALLBACK] {msg}")
+
 
         self.tool_registry_data: List[Dict[str, Any]] = []
         if isinstance(tool_registry_or_path, str):
