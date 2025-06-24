@@ -93,16 +93,22 @@ try:
             goal_worker_instance_ref = None
     else:
         # This means initialize_ai_core_singleton() returned None
-        log_to_console_logger("CRITICAL", "(console_ai) Failed to obtain AICore singleton instance (initialize_ai_core_singleton returned None). AI Core functionalities will be unavailable.")
+        critical_init_msg = "(console_ai) CRITICAL FAILURE: AI Core singleton instance could not be obtained. Core AI functionalities will be SEVERELY LIMITED or UNAVAILABLE. Check previous log messages for reasons (e.g., component import errors, configuration issues)."
+        log_to_console_logger("CRITICAL", critical_init_msg)
+        # Print a prominent message to the console as well, as logs might be missed.
+        # This uses the pre-init logger as ai_core_singleton_instance is None.
+        print(f"\n\n{'!'*10} CRITICAL SYSTEM INITIALIZATION FAILURE {'!'*10}\n{critical_init_msg}\n{'!'*60}\n", file=sys.stderr)
         goal_worker_instance_ref = None
         # Keep ai_core_singleton_instance as None; other globals retain their initial fallbacks
 
 except ImportError as e_ai_core_import:
-    log_to_console_logger("CRITICAL", f"(console_ai) FATAL: Failed to import from ai_core.py: {e_ai_core_import}. Core AI functionalities disabled.")
+    log_to_console_logger("CRITICAL", f"(console_ai) FATAL: Failed to import from ai_core.py: {e_ai_core_import}. Core AI functionalities disabled.\n{traceback.format_exc()}")
+    print(f"\n\n{'!'*10} CRITICAL IMPORT FAILURE {'!'*10}\n(console_ai) FATAL: Failed to import from ai_core.py: {e_ai_core_import}. Core AI functionalities disabled. Check logs.\n{'!'*60}\n", file=sys.stderr)
     ai_core_singleton_instance = None # Ensure it's None
     goal_worker_instance_ref = None
 except Exception as e_aicore_general_init:
     log_to_console_logger("CRITICAL", f"(console_ai) FATAL: An unexpected error occurred during AICore initialization phase: {e_aicore_general_init}\n{traceback.format_exc()}")
+    print(f"\n\n{'!'*10} CRITICAL UNEXPECTED INITIALIZATION FAILURE {'!'*10}\n(console_ai) FATAL: An unexpected error occurred during AICore initialization phase: {e_aicore_general_init}. Check logs.\n{'!'*60}\n", file=sys.stderr)
     ai_core_singleton_instance = None # Ensure it's None
     goal_worker_instance_ref = None
 
@@ -540,7 +546,7 @@ def is_status_or_greeting_query(text: str) -> bool:
     return is_status or is_greeting
 
 # --- Section 3: Main Console Loop Function ---
-def main_console_loop() -> None:
+def main_console_loop(initial_command: Optional[str] = None) -> None: # Added initial_command argument
     # Global variables used in this loop, established in Section 1 or earlier in this function
     global partial_input, active_ai_streams, VOICE_ENABLED, last_ai_interaction_thread_id 
     # goal_worker_instance_ref, log_to_console_logger, response_queue_console,
@@ -567,6 +573,7 @@ def main_console_loop() -> None:
 
     voice_input_active_flag = False
     partial_input = "" 
+    user_input_to_process_from_arg = initial_command # Store initial command
 
     try:
         _ensure_meta_dir_console() # Ensure meta dir early
@@ -577,14 +584,17 @@ def main_console_loop() -> None:
         # --- Print Welcome Banner ---
         print(color_text("🤖 Reflective AI Console Interface v2.5 (UI Input Refined)", Fore.CYAN))
         print(f"AI System Version: {get_current_version()} | LLM: {AI_CORE_MODEL_NAME_CONSOLE}")
+        if initial_command:
+            print(color_text(f"Processing initial command: {initial_command}", Fore.YELLOW))
         print(color_text("Type /help for options. Threading & Priorities Active.", Fore.CYAN))
         if VOICE_ENABLED:
             print(color_text("Voice commands available via /voice.", Fore.CYAN))
         else:
             print(color_text("Voice commands disabled (module missing or initialization failed).", Fore.YELLOW))
         
-        sys.stdout.write(color_text("You: ", Fore.GREEN)) # Initial prompt
-        sys.stdout.flush() 
+        if not initial_command: # Only print "You: " prompt if not processing an initial command immediately
+            sys.stdout.write(color_text("You: ", Fore.GREEN)) # Initial prompt
+            sys.stdout.flush()
 
         # --- Start Goal Worker Thread ---
         if goal_worker_instance_ref and hasattr(goal_worker_instance_ref, 'start_worker'):
@@ -675,7 +685,16 @@ def main_console_loop() -> None:
             # --- Handle User Input (Voice or Keyboard) ---
             user_input_to_process = None
 
-            if voice_input_active_flag and VOICE_ENABLED and recognizer and sr:
+            # --- Process initial command from argument if available ---
+            if user_input_to_process_from_arg:
+                print_and_restore_prompt(color_text(f"\nProcessing command-line input: {user_input_to_process_from_arg}", Fore.CYAN))
+                user_input_to_process = user_input_to_process_from_arg
+                user_input_to_process_from_arg = None # Clear after processing once
+                # Ensure the "You: " prompt is shown after this initial command is processed and output is printed.
+                # This will happen naturally as print_and_restore_prompt will restore it.
+                # We also need to ensure that the loop continues to ask for new input if no Ctrl+C occurs.
+
+            elif voice_input_active_flag and VOICE_ENABLED and recognizer and sr:
                 # Original code (line 526) had set_pause(False). This implies ensuring the worker is *running*
                 # (or unpaused if it was paused by a command). This seems a bit counter-intuitive if voice recognition
                 # is CPU intensive, as one might expect to pause other heavy work.
@@ -1500,4 +1519,10 @@ if __name__ == "__main__":
     # log_to_console_logger is available globally if main_console_loop needs to log
     # something directly at this very top level of its call, though typically it uses it internally.
     log_to_console_logger("INFO", "(console_ai) Starting main_console_loop from __main__.")
-main_console_loop()
+
+    initial_user_command = None
+    if len(sys.argv) > 1:
+        initial_user_command = " ".join(sys.argv[1:])
+        log_to_console_logger("INFO", f"(console_ai) Received initial command from argv: '{initial_user_command}'")
+
+    main_console_loop(initial_command=initial_user_command)

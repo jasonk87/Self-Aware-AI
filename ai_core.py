@@ -399,14 +399,23 @@ class AICore:
             raise ImportError("Critical component ToolRunner could not be initialized")
 
     def _load_config(self, config_file: str) -> Dict[str, Any]:
-        if os.path.exists(config_file):
+        if config_file and os.path.exists(config_file): # Check if config_file is not None
             try:
-                with open(config_file, "r", encoding="utf-8") as f: return json.load(f)
+                with open(config_file, "r", encoding="utf-8") as f:
+                    loaded_config = json.load(f)
+                    self.logger("INFO", f"(AICore) Successfully loaded configuration from {config_file}.")
+                    return loaded_config
+            except json.JSONDecodeError as e_json:
+                self.logger("ERROR", f"(AICore) Failed to decode JSON from config file {config_file}: {e_json}. Using default settings.")
             except Exception as e:
-                self.logger("ERROR", f"Failed to load config {config_file}: {e}. Using defaults.")
-        self.logger("INFO", f"Config file {config_file} not found. Using default settings.")
+                self.logger("ERROR", f"(AICore) Failed to load config file {config_file} due to an unexpected error: {e}. Using default settings.\n{traceback.format_exc()}")
+        elif config_file: # config_file was provided but not found
+            self.logger("WARNING", f"(AICore) Specified config file {config_file} not found. Using default settings.")
+        else: # config_file was None
+            self.logger("INFO", "(AICore) No config file specified. Using default settings.")
 
-        meta_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "meta")
+        # Fallback to default settings
+        meta_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "meta")
         os.makedirs(meta_dir, exist_ok=True)
 
         return {
@@ -751,8 +760,12 @@ def initialize_ai_core_singleton(config_file="config.json", logger_override=None
             effective_logger("INFO", "(ai_core_wrapper) AICore singleton instance CREATED and assigned.")
             return _ai_core_instance_singleton # Explicitly return the created instance
             
-        except Exception as e_init_aicore_s:
-            effective_logger("CRITICAL", f"(ai_core_wrapper) Failed to create AICore singleton instance: {e_init_aicore_s}\n{traceback.format_exc()}")
+        except ImportError as e_import_init: # More specific catch for import errors during AICore component init
+            effective_logger("CRITICAL", f"(ai_core_wrapper) ImportError during AICore component initialization: {e_import_init}\n{traceback.format_exc()}")
+            _ai_core_instance_singleton = None
+            return None
+        except Exception as e_init_aicore_s: # General catch for other errors
+            effective_logger("CRITICAL", f"(ai_core_wrapper) Failed to create AICore singleton instance due to an unexpected error: {e_init_aicore_s}\n{traceback.format_exc()}")
             _ai_core_instance_singleton = None # Ensure it's None on failure
             return None # Explicitly return None on failure
     else:
